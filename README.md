@@ -9,7 +9,7 @@ pdf-to-text/
 ├── input/                    # Source PDF files
 │   └── BEI.pdf              # Bioequivalence study report (20 pages)
 ├── output/                  # Generated output files
-│   ├── BEI_EN.txt          # English translation (Markdown)
+│   ├── BEI_EN.md           # English translation (Markdown)
 │   └── BEI_EN.docx         # Word document
 ├── scripts/                 # Conversion scripts
 │   └── convert_to_docx.js  # Node.js DOCX generator
@@ -56,7 +56,7 @@ pdftocairo -png input/BEI.pdf /tmp/bei_page
 
 ### 2. Translate Content
 
-Use AI vision capabilities to read images and translate content. The translated output is saved to `output/BEI_EN.txt`.
+Use AI vision capabilities to read images and translate content. The translated output is saved to `output/BEI_EN.md`.
 
 ### 3. Generate DOCX
 
@@ -96,7 +96,7 @@ createBulletPoint(text) // Create bullet lists
 
 ## Output Files
 
-### BEI_EN.txt (Markdown)
+### BEI_EN.md (Markdown)
 - 55 KB
 - Full English translation
 - Markdown formatting preserved
@@ -115,7 +115,7 @@ createBulletPoint(text) // Create bullet lists
 3. **Image Conversion**: `pdftocairo -png` converts pages to images
 4. **OCR Processing**: Vision model reads images and extracts text
 5. **Translation**: AI translates Russian to English
-6. **Output Generation**: Write to TXT and DOCX formats
+6. **Output Generation**: Write to MD and DOCX formats
 
 ### Dependencies
 

@@ -3,8 +3,8 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         HeadingLevel, AlignmentType, WidthType, BorderStyle, TableCellWidth,
         TableBorders, convertInchesToTwip } = require('docx');
 
-// Read the translated text file
-const textContent = fs.readFileSync('/home/mimo/pdf-to-text/output/BEI_EN.txt', 'utf-8');
+// Read the translated markdown file
+const textContent = fs.readFileSync('/home/mimo/pdf-to-text/output/BEI_EN.md', 'utf-8');
 
 // Parse the text content
 function parseContent(text) {
