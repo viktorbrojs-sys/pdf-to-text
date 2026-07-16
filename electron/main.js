@@ -6,6 +6,9 @@ const { execSync, spawn } = require('child_process');
 let mainWindow;
 let pipelineProcess = null;
 
+// Disable sandbox if permissions are not set correctly
+app.commandLine.appendSwitch('no-sandbox');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 600,
