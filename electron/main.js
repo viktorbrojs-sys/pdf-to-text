@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
+const { processDirectory } = require('../scripts/ocr');
 
 let mainWindow;
 let pipelineProcess = null;
@@ -90,56 +91,89 @@ ipcMain.handle('process-pdf', async (event, filePath) => {
       .sort()
       .map(f => path.join(imagesDir, f));
     
-    // Step 2: OCR (placeholder - would need actual OCR integration)
+    // Step 2: OCR - Recognize text from images
     mainWindow.webContents.send('status-update', { 
       step: 2, 
       message: 'Распознавание текста...',
-      progress: 50 
+      progress: 30 
     });
+    
+    let extractedText = '';
+    try {
+      extractedText = await processDirectory(imagesDir, (current, total, percent) => {
+        const progress = 30 + Math.round(percent * 0.4); // 30-70%
+        mainWindow.webContents.send('status-update', { 
+          step: 2, 
+          message: `Распознавание: страница ${current}/${total}...`,
+          progress 
+        });
+      });
+    } catch (ocrError) {
+      console.error('OCR error:', ocrError);
+      extractedText = `[Ошибка OCR: ${ocrError.message}]`;
+    }
     
     // Step 3: Translation (placeholder)
     mainWindow.webContents.send('status-update', { 
       step: 3, 
       message: 'Перевод текста...',
-      progress: 70 
+      progress: 75 
     });
     
     // Step 4: Save markdown
     mainWindow.webContents.send('status-update', { 
       step: 4, 
       message: 'Сохранение результата...',
-      progress: 90 
+      progress: 85 
     });
     
-    const mdFileName = fileName.replace('.pdf', '_EN.md');
+    const mdFileName = fileName.replace('.pdf', '.md');
     const mdPath = path.join(outputDir, mdFileName);
     
-    // For demo: copy existing translation if available
-    const existingMd = path.join(outputDir, 'BEI_EN.md');
-    if (fs.existsSync(existingMd)) {
-      fs.copyFileSync(existingMd, mdPath);
-    } else {
-      fs.writeFileSync(mdPath, `# Translation of ${fileName}\n\n[Translation would appear here]\n`);
-    }
+    // Save extracted text as markdown
+    const markdownContent = `# ${fileName}\n\n${extractedText}`;
+    fs.writeFileSync(mdPath, markdownContent, 'utf-8');
     
     // Step 5: Convert to DOCX
     mainWindow.webContents.send('status-update', { 
       step: 5, 
       message: 'Создание Word документа...',
-      progress: 95 
+      progress: 90 
     });
     
-    const docxFileName = fileName.replace('.pdf', '_EN.docx');
+    const docxFileName = fileName.replace('.pdf', '.docx');
     const docxPath = path.join(outputDir, docxFileName);
     
-    // Run DOCX conversion script
+    // Run DOCX conversion script with the correct input file
     try {
-      execSync(`node "${path.join(__dirname, '../scripts/convert_to_docx.js')}"`, {
-        timeout: 30000
-      });
+      // Update the convert script to use the correct input
+      const convertScript = fs.readFileSync(
+        path.join(__dirname, '../scripts/convert_to_docx.js'), 
+        'utf-8'
+      );
+      
+      // Create a temporary script with correct paths
+      const tempScript = convertScript
+        .replace(/BEI_EN\.md/g, mdFileName)
+        .replace(/BEI\.pdf/g, fileName);
+      
+      const tempScriptPath = path.join(outputDir, '_temp_convert.js');
+      fs.writeFileSync(tempScriptPath, tempScript);
+      
+      execSync(`node "${tempScriptPath}"`, { timeout: 30000 });
+      
+      // Clean up temp script
+      fs.unlinkSync(tempScriptPath);
+      
+      // Rename the output if needed
+      const defaultDocx = path.join(outputDir, 'BEI_EN.docx');
+      if (fs.existsSync(defaultDocx) && defaultDocx !== docxPath) {
+        fs.renameSync(defaultDocx, docxPath);
+      }
     } catch (e) {
-      // If script fails, create empty docx marker
-      fs.writeFileSync(docxPath, 'DOCX conversion pending');
+      console.error('DOCX conversion error:', e);
+      // Create a simple text file as fallback
+      fs.writeFileSync(docxPath, extractedText);
     }
     
     mainWindow.webContents.send('status-update', { 
