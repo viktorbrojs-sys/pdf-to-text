@@ -2,6 +2,8 @@
 
 A desktop application for extracting text from scanned/image-based PDF documents and translating them to English with preserved formatting.
 
+**Note:** This is an Electron desktop app. It cannot run on Vercel or other web hosting services - run locally with `npm run electron:dev`.
+
 ## Project Structure
 
 ```
@@ -66,6 +68,8 @@ npm install
 # Start Electron app with hot reload
 npm run electron:dev
 ```
+
+App opens at: http://localhost:3000
 
 ### Production Build
 
