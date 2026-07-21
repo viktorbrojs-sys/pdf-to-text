@@ -12,18 +12,24 @@ else
     echo "[1/4] Dependencies already installed."
 fi
 
-# Check if /dev/shm permissions are correct (Linux)
+# Fix /dev/shm permissions if needed
 if [ -d "/dev/shm" ]; then
     SHM_PERMS=$(stat -c %a /dev/shm 2>/dev/null)
     if [ "$SHM_PERMS" != "1777" ]; then
         echo "[2/4] Fixing /dev/shm permissions..."
-        sudo chmod 1777 /dev/shm
+        sudo chmod 1777 /dev/shm 2>/dev/null || {
+            echo "  Warning: Could not fix /dev/shm. Using ELECTRON_DISABLE_SANDBOX instead."
+            export ELECTRON_DISABLE_SANDBOX=1
+        }
     else
         echo "[2/4] /dev/shm permissions OK."
     fi
 else
     echo "[2/4] Skipping /dev/shm check."
 fi
+
+# Always set ELECTRON_DISABLE_SANDBOX as fallback
+export ELECTRON_DISABLE_SANDBOX=1
 
 # Build project
 echo "[3/4] Building project..."
