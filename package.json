@@ -43,6 +43,18 @@
     ],
     "directories": {
       "output": "release"
+    },
+    "linux": {
+      "target": ["AppImage", "snap"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
