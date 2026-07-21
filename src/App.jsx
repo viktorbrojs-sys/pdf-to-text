@@ -3,6 +3,8 @@ import FileUpload from './components/FileUpload';
 import StatusBar from './components/StatusBar';
 import DownloadPanel from './components/DownloadPanel';
 
+console.log('App.jsx loaded');
+
 function App() {
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(0);
@@ -12,6 +14,7 @@ function App() {
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
+    console.log('App mounted, electronAPI:', !!window.electronAPI);
     setIsElectron(!!window.electronAPI);
     
     if (window.electronAPI) {
@@ -30,6 +33,8 @@ function App() {
       });
     }
   }, []);
+
+  console.log('App rendering, status:', status);
 
   const handleFileSelect = async () => {
     if (window.electronAPI) {
