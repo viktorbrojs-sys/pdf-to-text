@@ -35,19 +35,22 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './src/index.html',
       filename: 'index.html',
-      inject: true
+      inject: 'body'
     })
   ],
   devServer: {
-    static: {
-      directory: path.join(__dirname, 'dist'),
-    },
+    static: false,
     port: 3000,
     hot: true,
     open: false,
     historyApiFallback: true,
     headers: {
       'Access-Control-Allow-Origin': '*'
+    },
+    onAfterSetupMiddleware: (devServer) => {
+      devServer.middleware.waitUntilValid(() => {
+        console.log('\n✅ Webpack dev server is ready!\n');
+      });
     }
   }
 };

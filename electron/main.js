@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
+const http = require('http');
 
 // Import modules
 const { getPdfInfo } = require('../scripts/pdfinfo');
@@ -15,6 +16,7 @@ let mainWindow;
 
 // Disable sandbox if permissions are not set correctly
 app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-web-security');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,7 +25,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false
     },
     resizable: true,
     autoHideMenuBar: true,
@@ -33,10 +36,48 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    // Wait for dev server to be ready
+    waitForServer('http://localhost:3000', 30000)
+      .then(() => {
+        console.log('Dev server ready, loading URL...');
+        mainWindow.loadURL('http://localhost:3000');
+      })
+      .catch((err) => {
+        console.error('Dev server not ready:', err);
+        mainWindow.loadURL('data:text/html,<h1>Error: Dev server not ready. Run npm run build first.</h1>');
+      });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+  
+  // Log errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
+  
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    console.log('Renderer:', message);
+  });
+}
+
+function waitForServer(url, timeout) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const check = () => {
+      http.get(url, (res) => {
+        resolve(true);
+      }).on('error', (err) => {
+        if (Date.now() - startTime > timeout) {
+          reject(new Error('Timeout waiting for server'));
+        } else {
+          setTimeout(check, 500);
+        }
+      });
+    };
+    
+    check();
+  });
 }
 
 app.whenReady().then(createWindow);
