@@ -1,25 +1,31 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execSync, spawn } = require('child_process');
+const { execSync } = require('child_process');
+
+// Import modules
+const { getPdfInfo } = require('../scripts/pdfinfo');
+const { extractTextFromPdf } = require('../scripts/ocr-textpdf');
 const { processDirectory } = require('../scripts/ocr');
+const { ocrWithAI } = require('../scripts/ocr-ai');
+const { translate } = require('../scripts/translate');
+const { exportToMultiple } = require('../scripts/export');
 
 let mainWindow;
-let pipelineProcess = null;
 
 // Disable sandbox if permissions are not set correctly
 app.commandLine.appendSwitch('no-sandbox');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 600,
-    height: 500,
+    width: 900,
+    height: 700,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    resizable: false,
+    resizable: true,
     autoHideMenuBar: true,
     title: 'PDF to Text'
   });
@@ -47,6 +53,9 @@ app.on('activate', () => {
   }
 });
 
+// ============ IPC Handlers ============
+
+// Select PDF file
 ipcMain.handle('select-pdf', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -57,143 +66,196 @@ ipcMain.handle('select-pdf', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('process-pdf', async (event, filePath) => {
+// Get PDF info
+ipcMain.handle('get-pdf-info', async (event, filePath) => {
   try {
+    return getPdfInfo(filePath);
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+
+// OCR: Text-based PDF
+ipcMain.handle('ocr-textpdf', async (event, filePath) => {
+  try {
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: 'Извлечение текста из PDF...', progress: 50 
+    });
+    
+    const text = extractTextFromPdf(filePath);
+    return { success: true, text };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// OCR: Tesseract
+ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
+  try {
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: 'Распознавание Tesseract...', progress: 30 
+    });
+    
+    const text = await processDirectory(imageDir, (current, total, percent) => {
+      mainWindow.webContents.send('status-update', { 
+        step: 'ocr', 
+        message: `Tesseract: страница ${current}/${total}...`,
+        progress: 30 + Math.round(percent * 0.6)
+      });
+    });
+    
+    return { success: true, text };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// OCR: AI Vision
+ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
+  try {
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: 'Распознавание AI Vision...', progress: 50 
+    });
+    
+    const text = await ocrWithAI(imagePath, options);
+    return { success: true, text };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Translation
+ipcMain.handle('translate', async (event, text, options) => {
+  try {
+    mainWindow.webContents.send('status-update', { 
+      step: 'translate', message: 'Перевод текста...', progress: 50 
+    });
+    
+    const translated = await translate(text, options);
+    return { success: true, text: translated };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Export file
+ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) => {
+  try {
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    const results = await exportToMultiple(text, baseName, outputDir, formats);
+    return { success: true, results };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Full PDF processing pipeline
+ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
+  try {
+    const { method = 'auto' } = options;
     const inputDir = path.join(__dirname, '../input');
     const outputDir = path.join(__dirname, '../output');
+    const imagesDir = path.join(inputDir, 'images');
     
     // Ensure directories exist
-    if (!fs.existsSync(inputDir)) fs.mkdirSync(inputDir, { recursive: true });
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    [inputDir, outputDir, imagesDir].forEach(dir => {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    });
     
     // Copy PDF to input
     const fileName = path.basename(filePath);
     const destPath = path.join(inputDir, fileName);
     fs.copyFileSync(filePath, destPath);
     
-    // Step 1: Convert PDF to images
+    // Get PDF info
     mainWindow.webContents.send('status-update', { 
-      step: 1, 
-      message: 'Конвертация PDF в изображения...',
-      progress: 20 
+      step: 'info', message: 'Анализ файла...', progress: 10 
     });
     
-    const imagesDir = path.join(inputDir, 'images');
-    if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+    const info = getPdfInfo(destPath);
     
-    execSync(`pdftocairo -png "${destPath}" "${imagesDir}/page"`, { 
-      timeout: 60000 
+    // Convert to images (for OCR methods)
+    mainWindow.webContents.send('status-update', { 
+      step: 'convert', message: 'Конвертация PDF в изображения...', progress: 20 
     });
     
-    // Get generated images
+    // Clean old images
+    if (fs.existsSync(imagesDir)) {
+      fs.readdirSync(imagesDir).forEach(f => {
+        if (f.endsWith('.png')) fs.unlinkSync(path.join(imagesDir, f));
+      });
+    }
+    
+    execSync(`pdftocairo -png "${destPath}" "${imagesDir}/page"`, { timeout: 60000 });
+    
     const images = fs.readdirSync(imagesDir)
       .filter(f => f.endsWith('.png'))
       .sort()
       .map(f => path.join(imagesDir, f));
     
-    // Step 2: OCR - Recognize text from images
-    mainWindow.webContents.send('status-update', { 
-      step: 2, 
-      message: 'Распознавание текста...',
-      progress: 30 
-    });
+    let text = '';
     
-    let extractedText = '';
-    try {
-      extractedText = await processDirectory(imagesDir, (current, total, percent) => {
-        const progress = 30 + Math.round(percent * 0.4); // 30-70%
+    // Choose OCR method
+    if (method === 'textpdf' || (method === 'auto' && info.isTextBased)) {
+      // Use pdftotext for text-based PDFs
+      mainWindow.webContents.send('status-update', { 
+        step: 'ocr', message: 'Извлечение текста...', progress: 50 
+      });
+      text = extractTextFromPdf(destPath);
+    } else if (method === 'tesseract') {
+      // Use Tesseract
+      text = await processDirectory(imagesDir, (current, total, percent) => {
         mainWindow.webContents.send('status-update', { 
-          step: 2, 
-          message: `Распознавание: страница ${current}/${total}...`,
-          progress 
+          step: 'ocr', 
+          message: `Tesseract: ${current}/${total}...`,
+          progress: 30 + Math.round(percent * 0.6)
         });
       });
-    } catch (ocrError) {
-      console.error('OCR error:', ocrError);
-      extractedText = `[Ошибка OCR: ${ocrError.message}]`;
+    } else {
+      // Use AI Vision (default)
+      mainWindow.webContents.send('status-update', { 
+        step: 'ocr', message: 'AI Vision распознавание...', progress: 50 
+      });
+      
+      // Process first page for now
+      if (images.length > 0) {
+        text = await ocrWithAI(images[0], options.ocrOptions || {});
+      }
     }
     
-    // Step 3: Translation (placeholder)
+    // Save results
     mainWindow.webContents.send('status-update', { 
-      step: 3, 
-      message: 'Перевод текста...',
-      progress: 75 
+      step: 'save', message: 'Сохранение результатов...', progress: 90 
     });
     
-    // Step 4: Save markdown
-    mainWindow.webContents.send('status-update', { 
-      step: 4, 
-      message: 'Сохранение результата...',
-      progress: 85 
-    });
-    
-    const mdFileName = fileName.replace('.pdf', '.md');
+    const baseName = fileName.replace('.pdf', '');
+    const mdFileName = `${baseName}.md`;
     const mdPath = path.join(outputDir, mdFileName);
     
-    // Save extracted text as markdown
-    const markdownContent = `# ${fileName}\n\n${extractedText}`;
-    fs.writeFileSync(mdPath, markdownContent, 'utf-8');
-    
-    // Step 5: Convert to DOCX
-    mainWindow.webContents.send('status-update', { 
-      step: 5, 
-      message: 'Создание Word документа...',
-      progress: 90 
-    });
-    
-    const docxFileName = fileName.replace('.pdf', '.docx');
-    const docxPath = path.join(outputDir, docxFileName);
-    
-    // Run DOCX conversion script with the correct input file
-    try {
-      // Update the convert script to use the correct input
-      const convertScript = fs.readFileSync(
-        path.join(__dirname, '../scripts/convert_to_docx.js'), 
-        'utf-8'
-      );
-      
-      // Create a temporary script with correct paths
-      const tempScript = convertScript
-        .replace(/BEI_EN\.md/g, mdFileName)
-        .replace(/BEI\.pdf/g, fileName);
-      
-      const tempScriptPath = path.join(outputDir, '_temp_convert.js');
-      fs.writeFileSync(tempScriptPath, tempScript);
-      
-      execSync(`node "${tempScriptPath}"`, { timeout: 30000 });
-      
-      // Clean up temp script
-      fs.unlinkSync(tempScriptPath);
-      
-      // Rename the output if needed
-      const defaultDocx = path.join(outputDir, 'BEI_EN.docx');
-      if (fs.existsSync(defaultDocx) && defaultDocx !== docxPath) {
-        fs.renameSync(defaultDocx, docxPath);
-      }
-    } catch (e) {
-      console.error('DOCX conversion error:', e);
-      // Create a simple text file as fallback
-      fs.writeFileSync(docxPath, extractedText);
-    }
+    // Save as markdown
+    fs.writeFileSync(mdPath, `# ${fileName}\n\n${text}`, 'utf-8');
     
     mainWindow.webContents.send('status-update', { 
-      step: 5, 
+      step: 'done', 
       message: 'Готово!',
       progress: 100,
       completed: true,
+      info,
       files: {
         md: mdPath,
-        docx: docxPath,
         mdName: mdFileName,
-        docxName: docxFileName
+        images: images
       }
     });
     
-    return { success: true, mdPath, docxPath };
+    return { success: true, info, text, mdPath };
     
   } catch (error) {
     mainWindow.webContents.send('status-update', { 
-      step: 0, 
+      step: 'error', 
       message: `Ошибка: ${error.message}`,
       progress: 0,
       error: true 
@@ -202,6 +264,7 @@ ipcMain.handle('process-pdf', async (event, filePath) => {
   }
 });
 
+// Download file
 ipcMain.handle('download-file', async (event, { filePath, fileName }) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: fileName,
