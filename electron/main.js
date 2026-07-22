@@ -322,7 +322,7 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
       }
     });
     
-    return { success: true, info, text, mdPath };
+    return { success: true, info, text, mdPath, files: { images, imagesDir } };
     
   } catch (error) {
     mainWindow.webContents.send('status-update', { 
