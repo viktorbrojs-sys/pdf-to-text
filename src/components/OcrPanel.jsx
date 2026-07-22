@@ -18,7 +18,6 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [pullProgress, setPullProgress] = useState('');
 
-  // Check Ollama status on mount
   useEffect(() => {
     checkOllamaStatus();
   }, []);
@@ -87,13 +86,13 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
             setProgress(30);
             response = await window.electronAPI.ocrTesseract(imagesResult.files.imagesDir);
           } else {
-            throw new Error('Не удалось конвертировать PDF в изображения');
+            throw new Error('Не удалось конвертировать PDF');
           }
           break;
 
         case 'ai':
           if (aiProvider === 'ollama' && !ollamaStatus.running) {
-            throw new Error('Ollama не запущен. Нажмите "Настроить Ollama"');
+            throw new Error('Ollama не запущен');
           }
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(10);
@@ -107,7 +106,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               model: aiModel
             });
           } else {
-            throw new Error('Не удалось конвертировать PDF в изображения');
+            throw new Error('Не удалось конвертировать PDF');
           }
           break;
 
@@ -131,8 +130,6 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   return (
     <div className="ocr-panel">
-      <h2>Метод распознавания</h2>
-      
       <div className="method-buttons">
         <button 
           className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
@@ -140,7 +137,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           disabled={isProcessing}
         >
           📄 Текстовый PDF
-          {fileInfo?.isTextBased && <span className="badge">Рекомендуется</span>}
+          {fileInfo?.isTextBased && <span className="badge">★</span>}
         </button>
 
         <button 
@@ -148,8 +145,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('tesseract')}
           disabled={isProcessing}
         >
-          🔍 Tesseract OCR
-          <span className="sub">Локальный, бесплатный</span>
+          🔍 Tesseract
+          <span className="sub">Локальный</span>
         </button>
 
         <button 
@@ -163,24 +160,23 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       </div>
 
       {/* AI Vision Settings */}
-      <div className="ai-settings">
-        <h3>Настройки AI Vision</h3>
+      <div className="settings-section">
+        <h3>AI Vision</h3>
         <div className="setting-row">
-          <label>Провайдер:</label>
+          <label>API:</label>
           <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
-            <option value="ollama">Ollama (локальный)</option>
-            <option value="openai">OpenAI API</option>
-            <option value="google">Google Vision</option>
+            <option value="ollama">Ollama</option>
+            <option value="openai">OpenAI</option>
+            <option value="google">Google</option>
           </select>
         </div>
 
         {aiProvider === 'ollama' && (
           <>
-            {/* Ollama Status */}
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? '✅ Ollama установлен' : '❌ Ollama не установлен'}
-                {ollamaStatus.running ? ' | ✅ Сервер запущен' : ' | ❌ Сервер не запущен'}
+                {ollamaStatus.installed ? '✅' : '❌'} Ollama
+                {ollamaStatus.running ? ' | ✅ ON' : ' | ❌ OFF'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -188,12 +184,11 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                   onClick={handleSetupOllama}
                   disabled={isSettingUp}
                 >
-                  {isSettingUp ? 'Установка...' : 'Установить Ollama'}
+                  {isSettingUp ? 'Установка...' : 'Установить'}
                 </button>
               )}
             </div>
 
-            {/* Model Selection */}
             <div className="setting-row">
               <label>Модель:</label>
               <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
@@ -202,44 +197,31 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                     <option key={m.name} value={m.name}>{m.name}</option>
                   ))
                 ) : (
-                  <>
-                    <option value="llava">llava (рекомендуется)</option>
-                    <option value="minicpm-v">minicpm-v</option>
-                    <option value="bakllava">bakllava</option>
-                  </>
+                  <option value="llava">llava</option>
                 )}
               </select>
             </div>
 
-            {/* Pull Model */}
             {ollamaStatus.installed && !ollamaStatus.models.some(m => m.name.startsWith(aiModel.split(':')[0])) && (
-              <div className="pull-model">
-                <button 
-                  className="pull-btn"
-                  onClick={() => handlePullModel(aiModel)}
-                  disabled={!!pullProgress}
-                >
-                  {pullProgress || `Скачать ${aiModel}`}
-                </button>
-              </div>
-            )}
-
-            {pullProgress && (
-              <div className="progress-container">
-                <p>{pullProgress}</p>
-              </div>
+              <button 
+                className="pull-btn"
+                onClick={() => handlePullModel(aiModel)}
+                disabled={!!pullProgress}
+              >
+                {pullProgress || `Скачать ${aiModel}`}
+              </button>
             )}
           </>
         )}
 
         {aiProvider !== 'ollama' && (
           <div className="setting-row">
-            <label>API ключ:</label>
+            <label>Key:</label>
             <input 
               type="password" 
               value={apiKey} 
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Введите API ключ"
+              placeholder="API ключ"
             />
           </div>
         )}
@@ -248,30 +230,20 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {/* Progress */}
       {isProcessing && (
         <div className="progress-container">
+          <p>{statusMessage || 'Обработка...'}</p>
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
-          <p>{statusMessage || 'Обработка...'}</p>
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="error-message">
-          ❌ {error}
-        </div>
-      )}
+      {error && <div className="error-message">❌ {error}</div>}
+      {statusMessage && !isProcessing && <div className="status-message">ℹ️ {statusMessage}</div>}
 
-      {/* Result */}
       {result && (
         <div className="result-container">
-          <h3>Результат ({selectedMethod})</h3>
-          <textarea 
-            className="result-text" 
-            value={result} 
-            readOnly 
-            rows={10}
-          />
+          <h3>Результат</h3>
+          <textarea className="result-text" value={result} readOnly rows={6} />
         </div>
       )}
     </div>

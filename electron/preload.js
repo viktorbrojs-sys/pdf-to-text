@@ -32,5 +32,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Status updates
   onStatusUpdate: (callback) => {
     ipcRenderer.on('status-update', (event, data) => callback(data));
+  },
+  
+  // Ollama progress
+  onOllamaProgress: (callback) => {
+    ipcRenderer.on('ollama-progress', (event, data) => callback(data));
   }
 });

@@ -66,10 +66,13 @@ function applyGlossary(text, patterns) {
  * @returns {string} Text with patterns restored
  */
 function restoreGlossary(text, patterns) {
+  if (!text || typeof text !== 'string') {
+    return text || '';
+  }
   let result = text;
   for (const [source, target] of Object.entries(patterns)) {
     // Remove brackets around translated terms
-    const regex = new RegExp(`\\[${target}\\]`, 'g');
+    const regex = new RegExp(`\\[${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'g');
     result = result.replace(regex, target);
   }
   return result;

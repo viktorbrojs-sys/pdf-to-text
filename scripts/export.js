@@ -93,13 +93,11 @@ async function exportToPdf(text, outputPath) {
   const pageWidth = currentPage.getWidth();
   const maxWidth = pageWidth - 2 * margin;
   
-  // Sanitize text - replace unsupported characters
+  // Sanitize text - strip ALL control characters and non-Latin
   function sanitizeText(str) {
-    // Only keep basic Latin characters, digits, and common punctuation
     return str
-      .replace(/[^\x00-\x7F]/g, '?')
-      .replace(/\u0000/g, '')
-      .replace(/[\u000B\u000C\u000E-\u001F]/g, '');
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .replace(/[^\x20-\x7E\n\r\t]/g, '?');
   }
   
   for (const line of lines) {

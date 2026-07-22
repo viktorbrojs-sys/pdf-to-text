@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-function FileUpload({ onFileSelect, onDrop, onDragOver, onFileInput }) {
+function FileUpload({ onFileSelect, onDrop, onFileInput }) {
   const fileInputRef = useRef(null);
 
   const handleClick = () => {
@@ -23,14 +23,12 @@ function FileUpload({ onFileSelect, onDrop, onDragOver, onFileInput }) {
       <div 
         className="drop-zone"
         onDrop={onDrop}
-        onDragOver={onDragOver}
+        onDragOver={(e) => e.preventDefault()}
         onClick={handleClick}
       >
-        <div className="drop-zone-content">
-          <span className="icon">📄</span>
-          <p className="drop-text">Перетащите PDF сюда</p>
-          <p className="drop-subtext">или нажмите для выбора</p>
-        </div>
+        <div className="icon">📄</div>
+        <p className="drop-text">Перетащите PDF</p>
+        <p className="drop-subtext">или нажмите для выбора</p>
       </div>
     </div>
   );

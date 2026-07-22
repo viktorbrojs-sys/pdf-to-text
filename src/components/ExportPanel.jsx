@@ -40,15 +40,13 @@ function ExportPanel({ text, fileName }) {
 
   return (
     <div className="export-panel">
-      <h2>Сохранение</h2>
-
       <div className="export-buttons">
         <button 
           className="export-btn md"
           onClick={() => handleExport(['md'])}
           disabled={exporting || !text}
         >
-          📝 Markdown (.md)
+          📝 MD
         </button>
 
         <button 
@@ -56,7 +54,7 @@ function ExportPanel({ text, fileName }) {
           onClick={() => handleExport(['docx'])}
           disabled={exporting || !text}
         >
-          📄 Word (.docx)
+          📄 DOCX
         </button>
 
         <button 
@@ -64,7 +62,7 @@ function ExportPanel({ text, fileName }) {
           onClick={() => handleExport(['pdf'])}
           disabled={exporting || !text}
         >
-          📕 PDF (.pdf)
+          📕 PDF
         </button>
 
         <button 
@@ -72,27 +70,20 @@ function ExportPanel({ text, fileName }) {
           onClick={() => handleExport(['md', 'docx', 'pdf'])}
           disabled={exporting || !text}
         >
-          💾 Все форматы
+          💾 Все
         </button>
       </div>
 
       {exporting && <p className="exporting">Экспорт...</p>}
 
-      {error && (
-        <div className="error-message">❌ {error}</div>
-      )}
+      {error && <div className="error-message">❌ {error}</div>}
 
       {results && (
         <div className="export-results">
-          <h3>Результаты экспорта</h3>
           {Object.entries(results).map(([format, result]) => (
             <div key={format} className={`export-result ${result.success ? 'success' : 'error'}`}>
               <span className="format">.{format}</span>
-              {result.success ? (
-                <span className="status">✅ {result.path}</span>
-              ) : (
-                <span className="status">❌ {result.error}</span>
-              )}
+              <span>{result.success ? '✅' : '❌'}</span>
             </div>
           ))}
         </div>

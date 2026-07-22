@@ -10,11 +10,11 @@ const { version } = require('../package.json');
 console.log('App.jsx loaded');
 
 function App() {
-  const [status, setStatus] = useState('idle'); // idle, loaded, ocr, translating, done
+  const [status, setStatus] = useState('idle');
   const [fileInfo, setFileInfo] = useState(null);
   const [ocrText, setOcrText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
-  const [currentText, setCurrentText] = useState(''); // Active text for export
+  const [currentText, setCurrentText] = useState('');
 
   useEffect(() => {
     console.log('App mounted');
@@ -88,60 +88,71 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>PDF to Text</h1>
-        <p className="subtitle">Распознавание и перевод PDF документов</p>
+        <div>
+          <h1>PDF to Text</h1>
+          <p className="subtitle">Распознавание и перевод PDF</p>
+        </div>
+        <span className="version">v{version}</span>
       </header>
 
       <main className="main">
-        {status === 'idle' && (
-          <FileUpload 
-            onFileSelect={handleFileSelect}
-            onDrop={handleDrop}
-            onFileInput={handleFileInput}
-          />
-        )}
-
-        {status !== 'idle' && fileInfo && (
-          <div className="workspace">
-            {/* File Info Bar */}
-            <div className="file-info-bar">
-              <span className="file-name">📄 {fileInfo.name}</span>
-              <span className="file-meta">
-                {fileInfo.sizeFormatted} • {fileInfo.pages} стр. • 
-                {fileInfo.isTextBased ? ' Текстовый PDF' : ' Скан'}
-              </span>
-              <button className="reset-btn" onClick={handleReset}>✕ Новый файл</button>
-            </div>
-
-            {/* OCR Panel */}
-            <div className="section">
-              <OcrPanel 
-                fileInfo={fileInfo}
-                onOcrComplete={handleOcrComplete}
-              />
-            </div>
-
-            {/* Translation Panel */}
-            <div className="section">
-              <TranslationPanel 
-                sourceText={ocrText}
-                onTranslationComplete={handleTranslationComplete}
-              />
-            </div>
-
-            {/* Export Panel */}
-            <div className="section">
-              <ExportPanel 
-                text={currentText}
-                fileName={fileInfo.name}
-              />
-            </div>
+        {status === 'idle' ? (
+          <div className="sidebar">
+            <FileUpload 
+              onFileSelect={handleFileSelect}
+              onDrop={handleDrop}
+              onFileInput={handleFileInput}
+            />
           </div>
+        ) : (
+          <>
+            <div className="sidebar">
+              {/* File Info */}
+              {fileInfo && (
+                <div className="file-info-bar">
+                  <span className="file-name">📄 {fileInfo.name}</span>
+                  <span className="file-meta">
+                    {fileInfo.sizeFormatted} • {fileInfo.pages} стр.
+                  </span>
+                  <button className="reset-btn" onClick={handleReset}>✕</button>
+                </div>
+              )}
+
+              {/* Export Panel */}
+              <div className="section">
+                <h2>💾 Сохранение</h2>
+                <ExportPanel 
+                  text={currentText}
+                  fileName={fileInfo?.name}
+                />
+              </div>
+            </div>
+
+            <div className="content">
+              {/* OCR Panel */}
+              <div className="section">
+                <h2>🔍 Распознавание</h2>
+                <OcrPanel 
+                  fileInfo={fileInfo}
+                  onOcrComplete={handleOcrComplete}
+                />
+              </div>
+
+              {/* Translation Panel */}
+              <div className="section">
+                <h2>🔄 Перевод</h2>
+                <TranslationPanel 
+                  sourceText={ocrText}
+                  onTranslationComplete={handleTranslationComplete}
+                />
+              </div>
+            </div>
+          </>
         )}
       </main>
 
       <footer className="footer">
-        <p>v{version}</p>
+        <p>PDF to Text v{version}</p>
       </footer>
     </div>
   );

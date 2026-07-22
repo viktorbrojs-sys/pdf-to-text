@@ -22,8 +22,10 @@ app.commandLine.appendSwitch('disable-web-security');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -250,10 +252,8 @@ ipcMain.handle('ollama-models', async () => {
 // Ollama: Pull model
 ipcMain.handle('ollama-pull', async (event, modelName) => {
   try {
-    await ollamaSetup.pullModel(modelName, (message) => {
-      mainWindow.webContents.send('status-update', { 
-        step: 'ollama-pull', message, progress: 50 
-      });
+    await ollamaSetup.pullModel(modelName, (progress) => {
+      mainWindow.webContents.send('ollama-progress', progress);
     });
     return { success: true };
   } catch (error) {

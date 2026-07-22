@@ -137,15 +137,23 @@ async function pullModel(modelName, onProgress = () => {}) {
     let output = '';
     
     process.stdout.on('data', (data) => {
-      const line = data.toString();
-      output += line;
-      onProgress(line);
+      const lines = data.toString().split('\n').filter(l => l.trim());
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line);
+          if (json.status) {
+            onProgress({ status: json.status, percent: json.completed ? Math.round((json.completed / json.total) * 100) : null });
+          }
+        } catch (e) {
+          onProgress({ status: line, percent: null });
+        }
+      }
     });
     
     process.stderr.on('data', (data) => {
       const line = data.toString();
       if (line.includes('pulling') || line.includes('verifying')) {
-        onProgress(line);
+        onProgress({ status: line.trim(), percent: null });
       }
     });
     

@@ -13,7 +13,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   // Ollama status
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [pullProgress, setPullProgress] = useState('');
+  const [pullProgress, setPullProgress] = useState({ status: '', percent: null });
   
   // Settings
   const [provider, setProvider] = useState('ollama');
@@ -33,6 +33,13 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   // Check Ollama status on mount
   useEffect(() => {
     checkOllamaStatus();
+    
+    // Listen for pull progress
+    if (window.electronAPI?.onOllamaProgress) {
+      window.electronAPI.onOllamaProgress((progress) => {
+        setPullProgress(progress);
+      });
+    }
   }, []);
 
   const checkOllamaStatus = async () => {
@@ -62,6 +69,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       }
       
       setStatusMessage('Ollama готов к работе!');
+      setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,16 +78,17 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   };
 
   const handlePullModel = async (modelName) => {
-    setPullProgress('Начинаем скачивание...');
+    setPullProgress({ status: 'Начинаем скачивание...', percent: 0 });
     
     try {
       await window.electronAPI.ollamaPull(modelName);
-      setPullProgress('');
+      setPullProgress({ status: 'Готово!', percent: 100 });
       await checkOllamaStatus();
       setModel(modelName);
+      setTimeout(() => setPullProgress({ status: '', percent: null }), 2000);
     } catch (err) {
       setError(err.message);
-      setPullProgress('');
+      setPullProgress({ status: '', percent: null });
     }
   };
 
@@ -139,6 +148,21 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     <div className="translation-panel">
       <h2>Перевод</h2>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="error-banner">
+          <span>❌ {error}</span>
+          <button onClick={() => setError(null)}>✕</button>
+        </div>
+      )}
+
+      {/* Status Banner */}
+      {statusMessage && (
+        <div className="status-banner">
+          <span>ℹ️ {statusMessage}</span>
+        </div>
+      )}
+
       {/* Provider Settings */}
       <div className="settings-section">
         <h3>Настройки</h3>
@@ -194,16 +218,15 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                 <button 
                   className="pull-btn"
                   onClick={() => handlePullModel(model)}
-                  disabled={!!pullProgress}
+                  disabled={!!pullProgress.status}
                 >
-                  {pullProgress || `Скачать ${model}`}
+                  {pullProgress.status || `Скачать ${model}`}
                 </button>
-              </div>
-            )}
-
-            {pullProgress && (
-              <div className="progress-container">
-                <p>{pullProgress}</p>
+                {pullProgress.percent !== null && (
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${pullProgress.percent}%` }} />
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -229,13 +252,13 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
           className="system-prompt"
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
-          rows={5}
+          rows={3}
         />
       </div>
 
       {/* Glossary Patterns */}
       <div className="settings-section">
-        <h3>Паттерны перевода (аббревиатуры)</h3>
+        <h3>Паттерны перевода</h3>
         
         <div className="patterns-list">
           {patterns.map((p, i) => (
@@ -273,16 +296,6 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         {isTranslating ? '⏳ Переводим...' : '🔄 Перевести'}
       </button>
 
-      {/* Error */}
-      {error && (
-        <div className="error-message">❌ {error}</div>
-      )}
-
-      {/* Status */}
-      {statusMessage && (
-        <div className="status-message">ℹ️ {statusMessage}</div>
-      )}
-
       {/* Result */}
       {result && (
         <div className="result-container">
@@ -291,7 +304,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
             className="result-text" 
             value={result} 
             readOnly 
-            rows={10}
+            rows={6}
           />
         </div>
       )}
