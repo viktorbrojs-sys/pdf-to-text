@@ -95,18 +95,11 @@ async function exportToPdf(text, outputPath) {
   
   // Sanitize text - replace unsupported characters
   function sanitizeText(str) {
-    // Replace common problematic characters
+    // Only keep basic Latin characters, digits, and common punctuation
     return str
-      .replace(/[^\x00-\x7F]/g, (ch) => {
-        // Keep common Unicode characters that might work
-        const code = ch.charCodeAt(0);
-        if (code >= 0x0400 && code <= 0x04FF) {
-          // Cyrillic - replace with similar Latin or skip
-          return '?';
-        }
-        return '?';
-      })
-      .replace(/\u0000/g, '');
+      .replace(/[^\x00-\x7F]/g, '?')
+      .replace(/\u0000/g, '')
+      .replace(/[\u000B\u000C\u000E-\u001F]/g, '');
   }
   
   for (const line of lines) {

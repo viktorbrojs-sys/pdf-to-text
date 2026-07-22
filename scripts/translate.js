@@ -102,10 +102,22 @@ async function translateWithOllama(text, options = {}) {
       })
     });
     
+    if (!response.ok) {
+      throw new Error(`Ollama server error: ${response.status}`);
+    }
+    
     const data = await response.json();
+    
+    if (!data.response) {
+      throw new Error('Ollama returned empty response. Model may not be loaded.');
+    }
+    
     return restoreGlossary(data.response, glossary);
   } catch (error) {
-    throw new Error(`Ollama error: ${error.message}. Make sure Ollama is running.`);
+    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+      throw new Error('Ollama is not running. Start it with: ollama serve');
+    }
+    throw new Error(`Ollama error: ${error.message}`);
   }
 }
 
