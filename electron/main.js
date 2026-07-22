@@ -47,7 +47,9 @@ function createWindow() {
         mainWindow.loadURL('data:text/html,<h1>Error: Dev server not ready. Run npm run build first.</h1>');
       });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Production mode - load from app directory
+    const appPath = app.getAppPath();
+    mainWindow.loadFile(path.join(appPath, 'dist', 'index.html'));
   }
   
   // Log errors
@@ -197,8 +199,9 @@ ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) 
 ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
   try {
     const { method = 'auto' } = options;
-    const inputDir = path.join(__dirname, '../input');
-    const outputDir = path.join(__dirname, '../output');
+    const appPath = app.getAppPath();
+    const inputDir = path.join(appPath, 'input');
+    const outputDir = path.join(appPath, 'output');
     const imagesDir = path.join(inputDir, 'images');
     
     // Ensure directories exist
