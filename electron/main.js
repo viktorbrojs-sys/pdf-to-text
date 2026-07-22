@@ -16,6 +16,7 @@ let mainWindow;
 
 // Disable sandbox if permissions are not set correctly
 app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-setuid-sandbox');
 app.commandLine.appendSwitch('disable-web-security');
 
 function createWindow() {
