@@ -6,6 +6,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
 
   // AI Vision settings
   const [aiProvider, setAiProvider] = useState('ollama');
@@ -18,41 +19,64 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     setError(null);
     setResult(null);
     setProgress(0);
+    setStatusMessage('Подготовка...');
 
     try {
       let response;
 
       switch (method) {
         case 'textpdf':
+          setStatusMessage('Извлечение текста из PDF...');
           response = await window.electronAPI.ocrTextPdf(fileInfo.path);
           break;
 
         case 'tesseract':
-          response = await window.electronAPI.ocrTesseract(fileInfo.imagesDir);
+          setStatusMessage('Конвертация PDF в изображения...');
+          setProgress(10);
+          // First convert PDF to images
+          const imagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
+          if (imagesResult.success && imagesResult.files?.images) {
+            setStatusMessage('Распознавание Tesseract...');
+            setProgress(30);
+            response = await window.electronAPI.ocrTesseract(imagesResult.files.imagesDir);
+          } else {
+            throw new Error('Не удалось конвертировать PDF в изображения');
+          }
           break;
 
         case 'ai':
-          response = await window.electronAPI.ocrAi(fileInfo.images?.[0], {
-            provider: aiProvider,
-            apiKey: apiKey || undefined,
-            model: aiModel
-          });
+          setStatusMessage('Конвертация PDF в изображения...');
+          setProgress(10);
+          // First convert PDF to images
+          const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
+          if (aiImagesResult.success && aiImagesResult.files?.images) {
+            setStatusMessage('Распознавание AI Vision...');
+            setProgress(30);
+            response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], {
+              provider: aiProvider,
+              apiKey: apiKey || undefined,
+              model: aiModel
+            });
+          } else {
+            throw new Error('Не удалось конвертировать PDF в изображения');
+          }
           break;
 
         default:
           throw new Error('Unknown method');
       }
 
-      if (response.success) {
+      if (response?.success) {
         setResult(response.text);
         onOcrComplete(response.text);
       } else {
-        setError(response.error);
+        setError(response?.error || 'Unknown error');
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setIsProcessing(false);
+      setStatusMessage('');
     }
   };
 
@@ -131,7 +155,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
-          <p>Обработка...</p>
+          <p>{statusMessage || 'Обработка...'}</p>
         </div>
       )}
 
