@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 /**
  * Export text to Markdown format
@@ -18,7 +18,6 @@ function exportToMarkdown(text, outputPath) {
  * @param {string} outputPath - Output file path
  */
 async function exportToDocx(text, outputPath) {
-  // Simple DOCX generation using docx library
   const { Document, Packer, Paragraph, TextRun } = require('docx');
   
   const lines = text.split('\n');
@@ -81,6 +80,10 @@ async function exportToDocx(text, outputPath) {
 async function exportToPdf(text, outputPath) {
   const pdfDoc = await PDFDocument.create();
   
+  // Use Helvetica (supports basic Latin)
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  
   // Split text into pages
   const lines = text.split('\n');
   let currentPage = pdfDoc.addPage();
@@ -90,6 +93,22 @@ async function exportToPdf(text, outputPath) {
   const pageWidth = currentPage.getWidth();
   const maxWidth = pageWidth - 2 * margin;
   
+  // Sanitize text - replace unsupported characters
+  function sanitizeText(str) {
+    // Replace common problematic characters
+    return str
+      .replace(/[^\x00-\x7F]/g, (ch) => {
+        // Keep common Unicode characters that might work
+        const code = ch.charCodeAt(0);
+        if (code >= 0x0400 && code <= 0x04FF) {
+          // Cyrillic - replace with similar Latin or skip
+          return '?';
+        }
+        return '?';
+      })
+      .replace(/\u0000/g, '');
+  }
+  
   for (const line of lines) {
     // Check if we need a new page
     if (yPosition < margin + lineHeight) {
@@ -97,38 +116,45 @@ async function exportToPdf(text, outputPath) {
       yPosition = currentPage.getHeight() - margin;
     }
     
+    const sanitizedLine = sanitizeText(line);
+    
     // Handle headers
     if (line.startsWith('# ')) {
-      currentPage.drawText(line.substring(2), {
+      currentPage.drawText(sanitizeText(line.substring(2)), {
         x: margin,
         y: yPosition,
         size: 18,
-        color: { red: 0, green: 0, blue: 0 }
+        font: fontBold,
+        color: rgb(0, 0, 0)
       });
       yPosition -= lineHeight * 1.5;
     } else if (line.startsWith('## ')) {
-      currentPage.drawText(line.substring(3), {
+      currentPage.drawText(sanitizeText(line.substring(3)), {
         x: margin,
         y: yPosition,
         size: 14,
-        color: { red: 0.2, green: 0.2, blue: 0.2 }
+        font: fontBold,
+        color: rgb(0.2, 0.2, 0.2)
       });
       yPosition -= lineHeight * 1.3;
     } else if (line.trim() === '') {
       yPosition -= lineHeight;
     } else {
       // Regular text - wrap if needed
-      const words = line.split(' ');
+      const words = sanitizedLine.split(' ');
       let currentLine = '';
       
       for (const word of words) {
         const testLine = currentLine ? currentLine + ' ' + word : word;
-        if (testLine.length * 7 > maxWidth) { // Approximate character width
+        const textWidth = font.widthOfTextAtSize(testLine, 10);
+        
+        if (textWidth > maxWidth) {
           currentPage.drawText(currentLine, {
             x: margin,
             y: yPosition,
             size: 10,
-            color: { red: 0.1, green: 0.1, blue: 0.1 }
+            font: font,
+            color: rgb(0.1, 0.1, 0.1)
           });
           yPosition -= lineHeight;
           currentLine = word;
@@ -147,7 +173,8 @@ async function exportToPdf(text, outputPath) {
           x: margin,
           y: yPosition,
           size: 10,
-          color: { red: 0.1, green: 0.1, blue: 0.1 }
+          font: font,
+          color: rgb(0.1, 0.1, 0.1)
         });
         yPosition -= lineHeight;
       }

@@ -4,6 +4,9 @@ import OcrPanel from './components/OcrPanel';
 import TranslationPanel from './components/TranslationPanel';
 import ExportPanel from './components/ExportPanel';
 
+// Get version from package.json
+const { version } = require('../package.json');
+
 console.log('App.jsx loaded');
 
 function App() {
@@ -138,7 +141,7 @@ function App() {
       </main>
 
       <footer className="footer">
-        <p>v2.0.0</p>
+        <p>v{version}</p>
       </footer>
     </div>
   );
