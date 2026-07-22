@@ -47,9 +47,28 @@ function createWindow() {
         mainWindow.loadURL('data:text/html,<h1>Error: Dev server not ready. Run npm run build first.</h1>');
       });
   } else {
-    // Production mode - load from app directory
-    const appPath = app.getAppPath();
-    mainWindow.loadFile(path.join(appPath, 'dist', 'index.html'));
+    // Production mode - try multiple paths
+    const possiblePaths = [
+      path.join(__dirname, '../dist/index.html'),
+      path.join(app.getAppPath(), 'dist/index.html'),
+      path.join(process.resourcesPath, 'app/dist/index.html'),
+      path.join(process.cwd(), 'dist/index.html')
+    ];
+    
+    let loaded = false;
+    for (const htmlPath of possiblePaths) {
+      if (fs.existsSync(htmlPath)) {
+        console.log('Loading HTML from:', htmlPath);
+        mainWindow.loadFile(htmlPath);
+        loaded = true;
+        break;
+      }
+    }
+    
+    if (!loaded) {
+      console.error('HTML not found in any location');
+      mainWindow.loadURL('data:text/html,<h1>Error: index.html not found</h1><p>Checked paths:</p><ul>' + possiblePaths.map(p => '<li>' + p + '</li>').join('') + '</ul>');
+    }
   }
   
   // Log errors
