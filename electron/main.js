@@ -11,6 +11,7 @@ const { processDirectory } = require('../scripts/ocr');
 const { ocrWithAI } = require('../scripts/ocr-ai');
 const { translate } = require('../scripts/translate');
 const { exportToMultiple } = require('../scripts/export');
+const ollamaSetup = require('../scripts/ollama-setup');
 
 let mainWindow;
 
@@ -217,6 +218,56 @@ ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) 
     
     const results = await exportToMultiple(text, baseName, outputDir, formats);
     return { success: true, results };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Ollama Setup
+ipcMain.handle('ollama-setup', async (event) => {
+  try {
+    const result = await ollamaSetup.setupCheck((message) => {
+      mainWindow.webContents.send('status-update', { 
+        step: 'ollama', message, progress: 50 
+      });
+    });
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Ollama: Get installed models
+ipcMain.handle('ollama-models', async () => {
+  try {
+    const models = ollamaSetup.getInstalledModels();
+    return { success: true, models };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Ollama: Pull model
+ipcMain.handle('ollama-pull', async (event, modelName) => {
+  try {
+    await ollamaSetup.pullModel(modelName, (message) => {
+      mainWindow.webContents.send('status-update', { 
+        step: 'ollama-pull', message, progress: 50 
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Ollama: Check status
+ipcMain.handle('ollama-status', async () => {
+  try {
+    const installed = ollamaSetup.isOllamaInstalled();
+    const running = ollamaSetup.isOllamaRunning();
+    const models = installed ? ollamaSetup.getInstalledModels() : [];
+    return { success: true, installed, running, models };
   } catch (error) {
     return { success: false, error: error.message };
   }

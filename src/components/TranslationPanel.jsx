@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const DEFAULT_SYSTEM_PROMPT = `Ты — профессиональный переводчик. Переведи текст с русского на английский язык.
 Сохрани форматирование: заголовки, списки, таблицы.
@@ -8,11 +8,17 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  
+  // Ollama status
+  const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
+  const [isSettingUp, setIsSettingUp] = useState(false);
+  const [pullProgress, setPullProgress] = useState('');
   
   // Settings
   const [provider, setProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState('llama3');
+  const [model, setModel] = useState('qwen2.5:7b');
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   
   // Glossary patterns
@@ -24,9 +30,67 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [newPatternSource, setNewPatternSource] = useState('');
   const [newPatternTarget, setNewPatternTarget] = useState('');
 
+  // Check Ollama status on mount
+  useEffect(() => {
+    checkOllamaStatus();
+  }, []);
+
+  const checkOllamaStatus = async () => {
+    try {
+      const status = await window.electronAPI.ollamaStatus();
+      setOllamaStatus(status);
+      
+      if (status.installed && status.models.length > 0) {
+        setModel(status.models[0].name);
+      }
+    } catch (err) {
+      console.error('Failed to check Ollama status:', err);
+    }
+  };
+
+  const handleSetupOllama = async () => {
+    setIsSettingUp(true);
+    setError(null);
+    setStatusMessage('Проверка и установка Ollama...');
+    
+    try {
+      const result = await window.electronAPI.ollamaSetup();
+      setOllamaStatus(result);
+      
+      if (result.installed && result.models.length > 0) {
+        setModel(result.models[0].name);
+      }
+      
+      setStatusMessage('Ollama готов к работе!');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSettingUp(false);
+    }
+  };
+
+  const handlePullModel = async (modelName) => {
+    setPullProgress('Начинаем скачивание...');
+    
+    try {
+      await window.electronAPI.ollamaPull(modelName);
+      setPullProgress('');
+      await checkOllamaStatus();
+      setModel(modelName);
+    } catch (err) {
+      setError(err.message);
+      setPullProgress('');
+    }
+  };
+
   const handleTranslate = async () => {
     if (!sourceText) {
       setError('Нет текста для перевода');
+      return;
+    }
+
+    if (provider === 'ollama' && !ollamaStatus.running) {
+      setError('Ollama не запущен. Нажмите "Настроить Ollama"');
       return;
     }
 
@@ -87,6 +151,64 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
           </select>
         </div>
 
+        {provider === 'ollama' && (
+          <>
+            {/* Ollama Status */}
+            <div className="ollama-status">
+              <p>
+                {ollamaStatus.installed ? '✅ Ollama установлен' : '❌ Ollama не установлен'}
+                {ollamaStatus.running ? ' | ✅ Сервер запущен' : ' | ❌ Сервер не запущен'}
+              </p>
+              {!ollamaStatus.installed && (
+                <button 
+                  className="setup-btn"
+                  onClick={handleSetupOllama}
+                  disabled={isSettingUp}
+                >
+                  {isSettingUp ? 'Установка...' : 'Установить Ollama'}
+                </button>
+              )}
+            </div>
+
+            {/* Model Selection */}
+            <div className="setting-row">
+              <label>Модель:</label>
+              <select value={model} onChange={(e) => setModel(e.target.value)}>
+                {ollamaStatus.models.length > 0 ? (
+                  ollamaStatus.models.map(m => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="qwen2.5:7b">qwen2.5:7b (рекомендуется)</option>
+                    <option value="llama3.1:8b">llama3.1:8b</option>
+                    <option value="mistral:7b">mistral:7b</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* Pull Model */}
+            {ollamaStatus.installed && !ollamaStatus.models.some(m => m.name === model) && (
+              <div className="pull-model">
+                <button 
+                  className="pull-btn"
+                  onClick={() => handlePullModel(model)}
+                  disabled={!!pullProgress}
+                >
+                  {pullProgress || `Скачать ${model}`}
+                </button>
+              </div>
+            )}
+
+            {pullProgress && (
+              <div className="progress-container">
+                <p>{pullProgress}</p>
+              </div>
+            )}
+          </>
+        )}
+
         {provider !== 'ollama' && (
           <div className="setting-row">
             <label>API ключ:</label>
@@ -96,17 +218,6 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Введите API ключ"
             />
-          </div>
-        )}
-
-        {provider === 'ollama' && (
-          <div className="setting-row">
-            <label>Модель:</label>
-            <select value={model} onChange={(e) => setModel(e.target.value)}>
-              <option value="llama3">LLaMA 3</option>
-              <option value="mistral">Mistral</option>
-              <option value="qwen2">Qwen 2</option>
-            </select>
           </div>
         )}
       </div>
@@ -165,6 +276,11 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Error */}
       {error && (
         <div className="error-message">❌ {error}</div>
+      )}
+
+      {/* Status */}
+      {statusMessage && (
+        <div className="status-message">ℹ️ {statusMessage}</div>
       )}
 
       {/* Result */}

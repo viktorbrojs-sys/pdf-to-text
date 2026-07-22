@@ -478,3 +478,51 @@ body {
   margin-top: 10px;
   text-align: center;
 }
+
+/* ============ Ollama ============ */
+.ollama-status {
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.ollama-status p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.setup-btn, .pull-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: #64ffda;
+  border: none;
+  border-radius: 6px;
+  color: #0f0f1a;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.setup-btn:hover, .pull-btn:hover {
+  background: #48c9b0;
+}
+
+.setup-btn:disabled, .pull-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pull-model {
+  margin-top: 10px;
+}
+
+.status-message {
+  padding: 10px;
+  background: rgba(100, 255, 218, 0.1);
+  border: 1px solid rgba(100, 255, 218, 0.3);
+  border-radius: 8px;
+  color: #64ffda;
+  font-size: 13px;
+  margin-top: 10px;
+}

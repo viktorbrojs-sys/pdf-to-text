@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function OcrPanel({ fileInfo, onOcrComplete }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -12,6 +12,54 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [aiProvider, setAiProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
   const [aiModel, setAiModel] = useState('llava');
+
+  // Ollama status
+  const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
+  const [isSettingUp, setIsSettingUp] = useState(false);
+  const [pullProgress, setPullProgress] = useState('');
+
+  // Check Ollama status on mount
+  useEffect(() => {
+    checkOllamaStatus();
+  }, []);
+
+  const checkOllamaStatus = async () => {
+    try {
+      const status = await window.electronAPI.ollamaStatus();
+      setOllamaStatus(status);
+    } catch (err) {
+      console.error('Failed to check Ollama status:', err);
+    }
+  };
+
+  const handleSetupOllama = async () => {
+    setIsSettingUp(true);
+    setError(null);
+    setStatusMessage('Проверка и установка Ollama...');
+    
+    try {
+      const result = await window.electronAPI.ollamaSetup();
+      setOllamaStatus(result);
+      setStatusMessage('Ollama готов к работе!');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSettingUp(false);
+    }
+  };
+
+  const handlePullModel = async (modelName) => {
+    setPullProgress('Начинаем скачивание...');
+    
+    try {
+      await window.electronAPI.ollamaPull(modelName);
+      setPullProgress('');
+      await checkOllamaStatus();
+    } catch (err) {
+      setError(err.message);
+      setPullProgress('');
+    }
+  };
 
   const handleOcr = async (method) => {
     setSelectedMethod(method);
@@ -33,7 +81,6 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
         case 'tesseract':
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(10);
-          // First convert PDF to images
           const imagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
           if (imagesResult.success && imagesResult.files?.images) {
             setStatusMessage('Распознавание Tesseract...');
@@ -45,9 +92,11 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           break;
 
         case 'ai':
+          if (aiProvider === 'ollama' && !ollamaStatus.running) {
+            throw new Error('Ollama не запущен. Нажмите "Настроить Ollama"');
+          }
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(10);
-          // First convert PDF to images
           const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
           if (aiImagesResult.success && aiImagesResult.files?.images) {
             setStatusMessage('Распознавание AI Vision...');
@@ -125,6 +174,64 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           </select>
         </div>
 
+        {aiProvider === 'ollama' && (
+          <>
+            {/* Ollama Status */}
+            <div className="ollama-status">
+              <p>
+                {ollamaStatus.installed ? '✅ Ollama установлен' : '❌ Ollama не установлен'}
+                {ollamaStatus.running ? ' | ✅ Сервер запущен' : ' | ❌ Сервер не запущен'}
+              </p>
+              {!ollamaStatus.installed && (
+                <button 
+                  className="setup-btn"
+                  onClick={handleSetupOllama}
+                  disabled={isSettingUp}
+                >
+                  {isSettingUp ? 'Установка...' : 'Установить Ollama'}
+                </button>
+              )}
+            </div>
+
+            {/* Model Selection */}
+            <div className="setting-row">
+              <label>Модель:</label>
+              <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                {ollamaStatus.models.length > 0 ? (
+                  ollamaStatus.models.map(m => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="llava">llava (рекомендуется)</option>
+                    <option value="minicpm-v">minicpm-v</option>
+                    <option value="bakllava">bakllava</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* Pull Model */}
+            {ollamaStatus.installed && !ollamaStatus.models.some(m => m.name.startsWith(aiModel.split(':')[0])) && (
+              <div className="pull-model">
+                <button 
+                  className="pull-btn"
+                  onClick={() => handlePullModel(aiModel)}
+                  disabled={!!pullProgress}
+                >
+                  {pullProgress || `Скачать ${aiModel}`}
+                </button>
+              </div>
+            )}
+
+            {pullProgress && (
+              <div className="progress-container">
+                <p>{pullProgress}</p>
+              </div>
+            )}
+          </>
+        )}
+
         {aiProvider !== 'ollama' && (
           <div className="setting-row">
             <label>API ключ:</label>
@@ -134,17 +241,6 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Введите API ключ"
             />
-          </div>
-        )}
-
-        {aiProvider === 'ollama' && (
-          <div className="setting-row">
-            <label>Модель:</label>
-            <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
-              <option value="llava">LLaVA</option>
-              <option value="minicpm-v">MiniCPM-V</option>
-              <option value="bakllava">BakLLaVA</option>
-            </select>
           </div>
         )}
       </div>
