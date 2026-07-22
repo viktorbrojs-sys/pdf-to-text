@@ -36,6 +36,7 @@
   "build": {
     "appId": "com.pdftotext.app",
     "productName": "PDF to Text",
+    "publish": null,
     "files": [
       "dist/**/*",
       "electron/**/*",
