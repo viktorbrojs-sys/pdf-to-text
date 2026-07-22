@@ -79,6 +79,13 @@ function createWindow() {
   mainWindow.webContents.on('console-message', (event, level, message) => {
     console.log('Renderer:', message);
   });
+
+  // Open DevTools with F12 (only in development)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12') {
+      mainWindow.webContents.openDevTools();
+    }
+  });
 }
 
 function waitForServer(url, timeout) {
