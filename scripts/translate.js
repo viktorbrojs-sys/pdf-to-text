@@ -143,7 +143,12 @@ async function translateWithOllama(text, options = {}) {
   const { 
     model = 'llama3', 
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
-    glossary = {}
+    glossary = {},
+    temperature = 0.7,
+    topP = 0.9,
+    topK = 50,
+    repeatPenalty = 1.1,
+    numPredict = -1
   } = options;
   
   const processedText = applyGlossary(text, glossary);
@@ -162,7 +167,14 @@ async function translateWithOllama(text, options = {}) {
           model,
           system: systemPrompt,
           prompt: processedText,
-          stream: false
+          stream: false,
+          options: {
+            temperature,
+            top_p: topP,
+            top_k: topK,
+            repeat_penalty: repeatPenalty,
+            num_predict: numPredict
+          }
         })
       }, OLLAMA_TIMEOUT);
     

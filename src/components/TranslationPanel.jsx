@@ -44,7 +44,15 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [elapsedTime, setElapsedTime] = useState(null);
   const [promptCollapsed, setPromptCollapsed] = useState(true);
   const [patternsCollapsed, setPatternsCollapsed] = useState(true);
+  const [llmCollapsed, setLlmCollapsed] = useState(true);
   const [resultExpanded, setResultExpanded] = useState(false);
+  const [llmParams, setLlmParams] = useState({
+    temperature: 0.7,
+    topP: 0.9,
+    topK: 50,
+    repeatPenalty: 1.1,
+    numPredict: -1
+  });
 
   useEffect(() => {
     checkOllamaStatus();
@@ -155,7 +163,8 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         apiKey: apiKey || undefined,
         model,
         systemPrompt,
-        glossary
+        glossary,
+        ...llmParams
       });
 
       setTranslateProgress({ current: 1, total: 1, message: 'Готово!' });
@@ -347,6 +356,70 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
             onChange={(e) => setSystemPrompt(e.target.value)}
             rows={3}
           />
+        )}
+      </div>
+
+      {/* LLM Parameters */}
+      <div className="settings-section">
+        <div
+          className={`collapsible-header ${llmCollapsed ? 'collapsed' : ''}`}
+          onClick={() => setLlmCollapsed(!llmCollapsed)}
+        >
+          <h3>Параметры LLM</h3>
+        </div>
+        {!llmCollapsed && (
+          <div className="llm-params">
+            <div className="param-row">
+              <label title="Низкие значения = более точный перевод, высокие = более креативный">Temperature</label>
+              <input
+                type="range"
+                min="0" max="2" step="0.1"
+                value={llmParams.temperature}
+                onChange={(e) => setLlmParams({ ...llmParams, temperature: parseFloat(e.target.value) })}
+              />
+              <span className="param-value">{llmParams.temperature}</span>
+            </div>
+            <div className="param-row">
+              <label title="Фильтрация по вероятности токенов">Top P</label>
+              <input
+                type="range"
+                min="0" max="1" step="0.05"
+                value={llmParams.topP}
+                onChange={(e) => setLlmParams({ ...llmParams, topP: parseFloat(e.target.value) })}
+              />
+              <span className="param-value">{llmParams.topP}</span>
+            </div>
+            <div className="param-row">
+              <label title="Ограничение количества кандидатов токенов">Top K</label>
+              <input
+                type="range"
+                min="1" max="100" step="1"
+                value={llmParams.topK}
+                onChange={(e) => setLlmParams({ ...llmParams, topK: parseInt(e.target.value) })}
+              />
+              <span className="param-value">{llmParams.topK}</span>
+            </div>
+            <div className="param-row">
+              <label title="Штраф за повторение слов">Repeat Penalty</label>
+              <input
+                type="range"
+                min="1" max="2" step="0.05"
+                value={llmParams.repeatPenalty}
+                onChange={(e) => setLlmParams({ ...llmParams, repeatPenalty: parseFloat(e.target.value) })}
+              />
+              <span className="param-value">{llmParams.repeatPenalty}</span>
+            </div>
+            <div className="param-row">
+              <label title="Максимальное количество токенов для генерации (-1 = авто)">Num Predict</label>
+              <input
+                type="range"
+                min="-1" max="4096" step="1"
+                value={llmParams.numPredict}
+                onChange={(e) => setLlmParams({ ...llmParams, numPredict: parseInt(e.target.value) })}
+              />
+              <span className="param-value">{llmParams.numPredict === -1 ? 'авто' : llmParams.numPredict}</span>
+            </div>
+          </div>
         )}
       </div>
 
