@@ -171,6 +171,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
           <select value={provider} onChange={(e) => setProvider(e.target.value)}>
             <option value="ollama">Ollama (локальный)</option>
             <option value="openai">OpenAI API</option>
+            <option value="deepseek">DeepSeek API</option>
             <option value="deepl">DeepL API</option>
           </select>
         </div>

@@ -95,19 +95,20 @@ function App() {
         <span className="version">v{version}</span>
       </header>
 
-      <main className="main">
+      <main className="main three-col">
         {status === 'idle' ? (
-          <div className="sidebar">
-            <FileUpload 
-              onFileSelect={handleFileSelect}
-              onDrop={handleDrop}
-              onFileInput={handleFileInput}
-            />
+          <div className="col-left">
+            <div className="section">
+              <FileUpload
+                onFileSelect={handleFileSelect}
+                onDrop={handleDrop}
+                onFileInput={handleFileInput}
+              />
+            </div>
           </div>
         ) : (
           <>
-            <div className="sidebar">
-              {/* File Info */}
+            <div className="col-left">
               {fileInfo && (
                 <div className="file-info-bar">
                   <span className="file-name">📄 {fileInfo.name}</span>
@@ -118,32 +119,31 @@ function App() {
                 </div>
               )}
 
-              {/* Export Panel */}
-              <div className="section">
-                <h2>💾 Сохранение</h2>
-                <ExportPanel 
-                  text={currentText}
-                  fileName={fileInfo?.name}
-                />
-              </div>
-            </div>
-
-            <div className="content">
-              {/* OCR Panel */}
               <div className="section">
                 <h2>🔍 Распознавание</h2>
-                <OcrPanel 
+                <OcrPanel
                   fileInfo={fileInfo}
                   onOcrComplete={handleOcrComplete}
                 />
               </div>
+            </div>
 
-              {/* Translation Panel */}
+            <div className="col-center">
               <div className="section">
                 <h2>🔄 Перевод</h2>
-                <TranslationPanel 
+                <TranslationPanel
                   sourceText={ocrText}
                   onTranslationComplete={handleTranslationComplete}
+                />
+              </div>
+            </div>
+
+            <div className="col-right">
+              <div className="section">
+                <h2>💾 Сохранение</h2>
+                <ExportPanel
+                  text={currentText}
+                  fileName={fileInfo?.name}
                 />
               </div>
             </div>

@@ -1,28 +1,22 @@
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
-/**
- * Export text to Markdown format
- * @param {string} text - Text content
- * @param {string} outputPath - Output file path
- */
+function sanitizeControlChars(str) {
+  return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
 function exportToMarkdown(text, outputPath) {
-  fs.writeFileSync(outputPath, text, 'utf-8');
+  fs.writeFileSync(outputPath, sanitizeControlChars(text), 'utf-8');
   return outputPath;
 }
 
-/**
- * Export text to DOCX format
- * @param {string} text - Text content
- * @param {string} outputPath - Output file path
- */
 async function exportToDocx(text, outputPath) {
   const { Document, Packer, Paragraph, TextRun } = require('docx');
-  
-  const lines = text.split('\n');
+
+  const sanitized = sanitizeControlChars(text);
+  const lines = sanitized.split('\n');
   const paragraphs = [];
-  
+
   for (const line of lines) {
     if (line.startsWith('# ')) {
       paragraphs.push(new Paragraph({
@@ -47,7 +41,6 @@ async function exportToDocx(text, outputPath) {
     } else if (line.trim() === '') {
       paragraphs.push(new Paragraph({ children: [] }));
     } else {
-      // Handle bold text
       const parts = line.split(/(\*\*[^*]+\*\*)/g);
       const children = parts.map(part => {
         if (part.startsWith('**') && part.endsWith('**')) {
@@ -58,123 +51,97 @@ async function exportToDocx(text, outputPath) {
       paragraphs.push(new Paragraph({ children }));
     }
   }
-  
+
   const doc = new Document({
     sections: [{
       properties: {},
       children: paragraphs
     }]
   });
-  
+
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(outputPath, buffer);
-  
+
   return outputPath;
 }
 
-/**
- * Export text to PDF format
- * @param {string} text - Text content
- * @param {string} outputPath - Output file path
- */
+function loadDejaVuFontBase64() {
+  const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+  if (fs.existsSync(fontPath)) {
+    return fs.readFileSync(fontPath).toString('base64');
+  }
+  return null;
+}
+
 async function exportToPdf(text, outputPath) {
-  const pdfDoc = await PDFDocument.create();
-  
-  // Use Helvetica (supports basic Latin)
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  
-  // Split text into pages
-  const lines = text.split('\n');
-  let currentPage = pdfDoc.addPage();
-  let yPosition = currentPage.getHeight() - 50;
-  const lineHeight = 14;
+  const { jsPDF } = require('jspdf');
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+  const fontBase64 = loadDejaVuFontBase64();
+  if (fontBase64) {
+    doc.addFileToVFS('DejaVuSans.ttf', fontBase64);
+    doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal');
+    doc.setFont('DejaVuSans');
+  }
+
+  const fontSize = 10;
+  const lineHeight = fontSize * 1.5;
   const margin = 50;
-  const pageWidth = currentPage.getWidth();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const maxWidth = pageWidth - 2 * margin;
-  
-  // Sanitize text - strip ALL control characters and non-Latin
-  function sanitizeText(str) {
-    return str
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      .replace(/[^\x20-\x7E\n\r\t]/g, '?');
+
+  let y = margin;
+  const lines = text.split('\n');
+
+  function newPage() {
+    doc.addPage();
+    y = margin;
   }
-  
+
   for (const line of lines) {
-    // Check if we need a new page
-    if (yPosition < margin + lineHeight) {
-      currentPage = pdfDoc.addPage();
-      yPosition = currentPage.getHeight() - margin;
+    if (y > pageHeight - margin) {
+      newPage();
     }
-    
-    const sanitizedLine = sanitizeText(line);
-    
-    // Handle headers
+
     if (line.startsWith('# ')) {
-      currentPage.drawText(sanitizeText(line.substring(2)), {
-        x: margin,
-        y: yPosition,
-        size: 18,
-        font: fontBold,
-        color: rgb(0, 0, 0)
-      });
-      yPosition -= lineHeight * 1.5;
-    } else if (line.startsWith('## ')) {
-      currentPage.drawText(sanitizeText(line.substring(3)), {
-        x: margin,
-        y: yPosition,
-        size: 14,
-        font: fontBold,
-        color: rgb(0.2, 0.2, 0.2)
-      });
-      yPosition -= lineHeight * 1.3;
-    } else if (line.trim() === '') {
-      yPosition -= lineHeight;
-    } else {
-      // Regular text - wrap if needed
-      const words = sanitizedLine.split(' ');
-      let currentLine = '';
-      
-      for (const word of words) {
-        const testLine = currentLine ? currentLine + ' ' + word : word;
-        const textWidth = font.widthOfTextAtSize(testLine, 10);
-        
-        if (textWidth > maxWidth) {
-          currentPage.drawText(currentLine, {
-            x: margin,
-            y: yPosition,
-            size: 10,
-            font: font,
-            color: rgb(0.1, 0.1, 0.1)
-          });
-          yPosition -= lineHeight;
-          currentLine = word;
-          
-          if (yPosition < margin + lineHeight) {
-            currentPage = pdfDoc.addPage();
-            yPosition = currentPage.getHeight() - margin;
-          }
-        } else {
-          currentLine = testLine;
-        }
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      const wrapped = doc.splitTextToSize(line.substring(2), maxWidth);
+      for (const wl of wrapped) {
+        if (y > pageHeight - margin) newPage();
+        doc.text(wl, margin, y);
+        y += 18 * 1.5;
       }
-      
-      if (currentLine) {
-        currentPage.drawText(currentLine, {
-          x: margin,
-          y: yPosition,
-          size: 10,
-          font: font,
-          color: rgb(0.1, 0.1, 0.1)
-        });
-        yPosition -= lineHeight;
+      doc.setFontSize(fontSize);
+      doc.setFont(undefined, 'normal');
+      y += 4;
+    } else if (line.startsWith('## ')) {
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      const wrapped = doc.splitTextToSize(line.substring(3), maxWidth);
+      for (const wl of wrapped) {
+        if (y > pageHeight - margin) newPage();
+        doc.text(wl, margin, y);
+        y += 14 * 1.5;
+      }
+      doc.setFontSize(fontSize);
+      doc.setFont(undefined, 'normal');
+      y += 2;
+    } else if (line.trim() === '') {
+      y += lineHeight;
+    } else {
+      const wrapped = doc.splitTextToSize(line, maxWidth);
+      for (const wl of wrapped) {
+        if (y > pageHeight - margin) newPage();
+        doc.text(wl, margin, y);
+        y += lineHeight;
       }
     }
   }
-  
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputPath, pdfBytes);
-  
+
+  doc.save(outputPath);
   return outputPath;
 }
 

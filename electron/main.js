@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const http = require('http');
 
 // Import modules
@@ -112,7 +112,28 @@ function waitForServer(url, timeout) {
   });
 }
 
-app.whenReady().then(createWindow);
+function tryStartOllama() {
+  try {
+    execSync('ollama list', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+    return;
+  } catch (e) {}
+
+  try {
+    const child = spawn('ollama', ['serve'], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+    console.log('Ollama serve started');
+  } catch (e) {
+    console.log('Could not start ollama serve:', e.message);
+  }
+}
+
+app.whenReady().then(() => {
+  tryStartOllama();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

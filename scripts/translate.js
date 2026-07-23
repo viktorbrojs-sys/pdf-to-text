@@ -207,6 +207,51 @@ async function translateWithDeepL(text, options = {}) {
 }
 
 /**
+ * Translate with DeepSeek API
+ * @param {string} text - Text to translate
+ * @param {Object} options - Options
+ * @returns {Promise<string>} Translated text
+ */
+async function translateWithDeepSeek(text, options = {}) {
+  const {
+    apiKey,
+    model = 'deepseek-chat',
+    systemPrompt = DEFAULT_SYSTEM_PROMPT,
+    glossary = {}
+  } = options;
+
+  if (!apiKey) throw new Error('DeepSeek API key required');
+
+  const processedText = applyGlossary(text, glossary);
+
+  try {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: processedText }
+        ],
+        max_tokens: 8192
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error.message);
+
+    return restoreGlossary(data.choices[0].message.content, glossary);
+  } catch (error) {
+    throw new Error(`DeepSeek API error: ${error.message}`);
+  }
+}
+
+/**
  * Main translation function
  * @param {string} text - Text to translate
  * @param {Object} options - Options
@@ -214,7 +259,7 @@ async function translateWithDeepL(text, options = {}) {
  */
 async function translate(text, options = {}) {
   const { provider = 'ollama', ...rest } = options;
-  
+
   switch (provider) {
     case 'ollama':
       return translateWithOllama(text, rest);
@@ -222,6 +267,8 @@ async function translate(text, options = {}) {
       return translateWithOpenAI(text, rest);
     case 'deepl':
       return translateWithDeepL(text, rest);
+    case 'deepseek':
+      return translateWithDeepSeek(text, rest);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -232,6 +279,7 @@ module.exports = {
   translateWithOllama,
   translateWithOpenAI,
   translateWithDeepL,
+  translateWithDeepSeek,
   loadGlossary,
   saveGlossary,
   DEFAULT_SYSTEM_PROMPT
