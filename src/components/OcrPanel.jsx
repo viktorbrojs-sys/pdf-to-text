@@ -132,15 +132,18 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           }
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(5);
+          console.log('Sending to OCR:', { model: aiModel, provider: aiProvider });
           const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
           if (aiImagesResult.success && aiImagesResult.files?.images) {
             setStatusMessage(`AI Vision: распознавание (${aiModel})...`);
             setProgress(30);
-            response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], {
+            const ocrOptions = {
               provider: aiProvider,
               apiKey: apiKey || undefined,
               model: aiModel
-            });
+            };
+            console.log('OCR options being sent:', JSON.stringify(ocrOptions));
+            response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
           } else {
             throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
           }

@@ -71,10 +71,14 @@ async function fetchWithTimeout(url, options, timeout) {
 }
 
 async function ocrWithOllama(imagePath, options = {}) {
+  logger.info('ocrWithOllama called with options:', JSON.stringify(options));
+  
   const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
+  logger.info('ocrWithOllama model:', model);
 
   const installedModels = getInstalledModels();
   if (!installedModels.some(m => m.startsWith(model.split(':')[0]))) {
+    logger.error('Model not installed:', { requested: model, available: installedModels });
     throw new Error(`Model ${model} is not installed. Available: ${installedModels.join(', ')}`);
   }
 

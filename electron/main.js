@@ -302,6 +302,7 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
 // OCR: AI Vision
 ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
   try {
+    logger.info('ocr-ai received options:', JSON.stringify(options));
     mainWindow.webContents.send('status-update', { 
       step: 'ocr', message: `AI Vision: распознавание (${options.model || 'модель'})...`, progress: 30 
     });
