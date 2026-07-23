@@ -25,6 +25,7 @@ function ModelSelect({ models, value, onChange, installedModels = [] }) {
   };
 
   const getSelectedModelInfo = () => {
+    console.log('ModelSelect getSelectedModelInfo - selectedModel:', selectedModel, 'value prop:', value);
     const model = models.find(m => m.name === selectedModel);
     if (model) {
       return {
@@ -66,6 +67,7 @@ function ModelSelect({ models, value, onChange, installedModels = [] }) {
                 key={m.name}
                 className={`model-select-option ${m.name === selectedModel ? 'selected' : ''}`}
                 onClick={() => {
+                  console.log('ModelSelect option clicked:', m.name);
                   setSelectedModel(m.name);
                   onChange(m.name);
                   setIsOpen(false);
@@ -90,6 +92,7 @@ function ModelSelect({ models, value, onChange, installedModels = [] }) {
                 key={m.name}
                 className={`model-select-option not-recommended ${m.name === selectedModel ? 'selected' : ''}`}
                 onClick={() => {
+                  console.log('ModelSelect installed option clicked:', m.name);
                   setSelectedModel(m.name);
                   onChange(m.name);
                   setIsOpen(false);

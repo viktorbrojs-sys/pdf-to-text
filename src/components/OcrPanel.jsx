@@ -64,6 +64,11 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   const effectiveAiModel = aiModel || (ollamaStatus.models.length > 0 ? ollamaStatus.models[0].name : '');
 
+  const handleModelChange = (modelName) => {
+    console.log('ModelSelect onChange called with:', modelName);
+    setAiModel(modelName);
+  };
+
   const isModelInstalled = (modelName) => {
     const baseName = modelName.split(':')[0];
     return ollamaStatus.models.some(m => m.name === modelName || m.name.startsWith(baseName));
@@ -121,6 +126,11 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       let response;
 
       const modelToSend = effectiveAiModel || (ollamaStatus.models.length > 0 ? ollamaStatus.models[0].name : 'qwen3-vl:4b');
+      console.log('DEBUG [handleOcr] aiModel:', aiModel, 'effectiveAiModel:', effectiveAiModel, 'modelToSend:', modelToSend);
+      
+      if (!modelToSend || modelToSend === '') {
+        throw new Error('Модель не выбрана. Выберите модель из списка.');
+      }
 
       if (fileInfo?.isImage) {
         setStatusMessage('AI Vision: распознавание изображения...');
@@ -355,7 +365,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                     <ModelSelect
                       models={VISION_MODELS}
                       value={effectiveAiModel}
-                      onChange={setAiModel}
+                      onChange={handleModelChange}
                       installedModels={ollamaStatus.models}
                     />
                   </div>
