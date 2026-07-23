@@ -16,6 +16,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [errorDetails, setErrorDetails] = useState('');
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [elapsedTime, setElapsedTime] = useState(null);
 
   const [aiProvider, setAiProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
@@ -98,6 +99,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     setShowErrorDetails(false);
     setResult(null);
     setProgress(0);
+    setElapsedTime(null);
     setStatusMessage(isRetry ? 'Повторная попытка...' : 'Подготовка...');
 
     try {
@@ -160,7 +162,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
       if (response?.success) {
         setProgress(100);
-        setStatusMessage('Готово!');
+        setElapsedTime(response.elapsed || null);
+        setStatusMessage(response.elapsed ? `✓ Готово (${response.elapsed} сек)` : '✓ Готово!');
         setResult(response.text);
         onOcrComplete(response.text, selectedMethod);
       } else {
@@ -206,10 +209,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {!selectedMethod && (
         <>
           <div className="ollama-status">
-            <p>
-              Провайдер: {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}
-              {ollamaStatus.running ? ' | ✓ Сервер запущен' : ' | ✗ Сервер не запущен'}
-            </p>
+            <p>Провайдер: {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}</p>
+            <p>{ollamaStatus.running ? '✓ Сервер запущен' : '✗ Сервер не запущен'}</p>
             {!ollamaStatus.installed && (
               <button 
                 className="setup-btn"
@@ -279,18 +280,16 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                 <label>API:</label>
                 <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
                   <option value="ollama">Ollama</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="google">Google</option>
+                  <option value="openai">OpenAI API</option>
+                  <option value="google">Google Vision API</option>
                 </select>
               </div>
 
               {aiProvider === 'ollama' && (
                 <>
                   <div className="ollama-status">
-                    <p>
-                      {ollamaStatus.installed ? '✓' : '✗'} Ollama
-                      {ollamaStatus.running ? ' | ✓ ON' : ' | ✗ OFF'}
-                    </p>
+                    <p>Провайдер: Ollama</p>
+                    <p>Статус: {ollamaStatus.installed ? '✓ Установлен' : '✗ Не установлен'} | {ollamaStatus.running ? '✓ Запущен' : '✗ Не запущен'}</p>
                     {!ollamaStatus.installed && (
                       <button 
                         className="setup-btn"

@@ -37,6 +37,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [newPatternTarget, setNewPatternTarget] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
   const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0, message: '' });
+  const [elapsedTime, setElapsedTime] = useState(null);
 
   useEffect(() => {
     checkOllamaStatus();
@@ -135,6 +136,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     setErrorDetails('');
     setShowErrorDetails(false);
     setResult(null);
+    setElapsedTime(null);
     setTranslateProgress({ current: 0, total: 0, message: 'Переводим...' });
 
     try {
@@ -152,6 +154,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       setTranslateProgress({ current: 1, total: 1, message: 'Готово!' });
 
       if (response.success) {
+        setElapsedTime(response.elapsed || null);
         setResult(response.text);
         onTranslationComplete(response.text);
       } else {
@@ -372,6 +375,10 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       >
         {isTranslating ? '... Переводим...' : '⇄ Перевести'}
       </button>
+
+      {elapsedTime && !isTranslating && (
+        <div className="status-message">✓ Готово ({elapsedTime} сек)</div>
+      )}
 
       {/* Result */}
       {result && (

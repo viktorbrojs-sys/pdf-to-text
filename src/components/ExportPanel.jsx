@@ -59,58 +59,29 @@ function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
   return (
     <div className="export-panel">
       <div className="export-buttons">
-        <button 
-          className="export-btn md"
-          onClick={() => handleExport(['md'])}
-          disabled={exporting || !text}
-        >
-          ◆ MD
-        </button>
-
-        <button 
-          className="export-btn docx"
-          onClick={() => handleExport(['docx'])}
-          disabled={exporting || !text}
-        >
-          ◆ DOCX
-        </button>
-
-        <button 
-          className="export-btn pdf"
-          onClick={() => handleExport(['pdf'])}
-          disabled={exporting || !text}
-        >
-          ◆ PDF
-        </button>
-
-        <button 
-          className="export-btn all"
-          onClick={() => handleExport(['md', 'docx', 'pdf'])}
-          disabled={exporting || !text}
-        >
-          ◆ Все
-        </button>
+        <button className="export-btn md" onClick={() => handleExport(['md'])} disabled={exporting || !text}>◆ MD</button>
+        <button className="export-btn docx" onClick={() => handleExport(['docx'])} disabled={exporting || !text}>◆ DOCX</button>
+        <button className="export-btn pdf" onClick={() => handleExport(['pdf'])} disabled={exporting || !text}>◆ PDF</button>
+        <button className="export-btn all" onClick={() => handleExport(['md', 'docx', 'pdf'])} disabled={exporting || !text}>◆ Все</button>
       </div>
 
-      {exporting && <p className="exporting">… Экспорт...</p>}
-
-      {error && <div className="error-message">{'✗'} {error}</div>}
-
-      {results && (
-        <div className="export-results">
-          {Object.entries(results).map(([format, result]) => (
-            <div key={format} className={`export-result ${result.success ? 'success' : 'error'}`}>
-              <span className="format">{baseName}.{format}</span>
-              <span className="result-status">{result.success ? '✓ Сохранено' : '✗ Ошибка'}</span>
-              {result.success && result.path && (
-                <button className="open-btn" onClick={() => handleOpenFile(result.path)}>
-                  Open
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="export-right">
+        {exporting && <p className="exporting">… Экспорт...</p>}
+        {error && <div className="error-message">{'✗'} {error}</div>}
+        {results && (
+          <div className="export-results">
+            {Object.entries(results).map(([format, result]) => (
+              <div key={format} className={`export-result ${result.success ? 'success' : 'error'}`}>
+                <span className="format">{baseName}.{format}</span>
+                <span className="result-status">{result.success ? '✓ Сохранено' : '✗ Ошибка'}</span>
+                {result.success && result.path && (
+                  <button className="open-btn" onClick={() => handleOpenFile(result.path)}>Open</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

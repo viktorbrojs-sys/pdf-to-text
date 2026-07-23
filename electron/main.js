@@ -235,6 +235,7 @@ ipcMain.handle('get-pdf-info', async (event, filePath) => {
 
 // OCR: Text-based PDF
 ipcMain.handle('ocr-textpdf', async (event, filePath) => {
+  const startTime = Date.now();
   try {
     mainWindow.webContents.send('status-update', { 
       step: 'ocr', message: 'Извлечение текста из PDF...', progress: 25 
@@ -253,7 +254,7 @@ ipcMain.handle('ocr-textpdf', async (event, filePath) => {
       step: 'ocr', message: `Готово: ${totalPages} страниц обработано`, progress: 100 
     });
     
-    return { success: true, text };
+    return { success: true, text, elapsed: ((Date.now() - startTime) / 1000).toFixed(1) };
   } catch (error) {
     logger.error('Text PDF extraction failed', { filePath, error: error.message, stack: error.stack });
     return { success: false, error: error.message, details: error.stack };
@@ -262,6 +263,7 @@ ipcMain.handle('ocr-textpdf', async (event, filePath) => {
 
 // OCR: Tesseract
 ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
+  const startTime = Date.now();
   try {
     mainWindow.webContents.send('status-update', { 
       step: 'ocr', message: 'Подготовка изображений...', progress: 10 
@@ -292,7 +294,7 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
       step: 'ocr', message: `Tesseract готово: ${totalPages} страниц обработано`, progress: 100 
     });
     
-    return { success: true, text };
+    return { success: true, text, elapsed: ((Date.now() - startTime) / 1000).toFixed(1) };
   } catch (error) {
     logger.error('Tesseract OCR failed', { imageDir, error: error.message, stack: error.stack });
     return { success: false, error: error.message, details: error.stack };
@@ -301,6 +303,7 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
 
 // OCR: AI Vision
 ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
+  const startTime = Date.now();
   try {
     logger.info('ocr-ai received options:', JSON.stringify(options));
     mainWindow.webContents.send('status-update', { 
@@ -313,7 +316,7 @@ ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
       step: 'ocr', message: 'AI Vision: завершено', progress: 100 
     });
     
-    return { success: true, text };
+    return { success: true, text, elapsed: ((Date.now() - startTime) / 1000).toFixed(1) };
   } catch (error) {
     logger.error('AI Vision OCR failed', { imagePath, options: { ...options, apiKey: options.apiKey ? '***' : undefined }, error: error.message, stack: error.stack });
     return { success: false, error: error.message, details: error.stack };
@@ -322,6 +325,7 @@ ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
 
 // Translation
 ipcMain.handle('translate', async (event, text, options) => {
+  const startTime = Date.now();
   try {
     logger.info('Translation started', { provider: options.provider || 'ollama', textLength: text.length });
     mainWindow.webContents.send('status-update', { 
@@ -331,7 +335,7 @@ ipcMain.handle('translate', async (event, text, options) => {
     const translated = await translate(text, options, (progress) => {
       mainWindow.webContents.send('translation-progress', progress);
     });
-    return { success: true, text: translated };
+    return { success: true, text: translated, elapsed: ((Date.now() - startTime) / 1000).toFixed(1) };
   } catch (error) {
     logger.error('Translation failed', { provider: options.provider, error: error.message, stack: error.stack });
     return { success: false, error: error.message, details: error.stack };
