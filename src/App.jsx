@@ -111,7 +111,7 @@ function App() {
             <div className="col-left">
               {fileInfo && (
                 <div className="file-info-bar">
-                  <span className="file-name">📄 {fileInfo.name}</span>
+                  <span className="file-name">[PDF] {fileInfo.name}</span>
                   <span className="file-meta">
                     {fileInfo.sizeFormatted} • {fileInfo.pages} стр.
                   </span>
@@ -120,7 +120,7 @@ function App() {
               )}
 
               <div className="section">
-                <h2>🔍 Распознавание</h2>
+                <h2>[OCR] Распознавание</h2>
                 <OcrPanel
                   fileInfo={fileInfo}
                   onOcrComplete={handleOcrComplete}
@@ -130,7 +130,7 @@ function App() {
 
             <div className="col-center">
               <div className="section">
-                <h2>🔄 Перевод</h2>
+                <h2>[Translate] Перевод</h2>
                 <TranslationPanel
                   sourceText={ocrText}
                   onTranslationComplete={handleTranslationComplete}
@@ -140,7 +140,7 @@ function App() {
 
             <div className="col-right">
               <div className="section">
-                <h2>💾 Сохранение</h2>
+                <h2>[Save] Сохранение</h2>
                 <ExportPanel
                   text={currentText}
                   fileName={fileInfo?.name}

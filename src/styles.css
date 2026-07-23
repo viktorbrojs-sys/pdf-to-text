@@ -38,7 +38,7 @@ body {
 }
 
 .header h1 {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   background: linear-gradient(135deg, #64ffda, #48c9b0);
   -webkit-background-clip: text;
@@ -47,7 +47,7 @@ body {
 
 .header .subtitle {
   color: #8892b0;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 /* Main Content */
@@ -83,7 +83,7 @@ body {
 }
 
 .section h2 {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   margin-bottom: 12px;
   color: #64ffda;
@@ -115,7 +115,7 @@ body {
 }
 
 .file-info p {
-  font-size: 12px;
+  font-size: 14px;
   color: #8892b0;
 }
 
@@ -135,7 +135,7 @@ button {
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -170,7 +170,7 @@ button:disabled {
   border: 1px solid #2a2a3a;
   border-radius: 8px;
   color: #e0e0e0;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -190,7 +190,7 @@ button:disabled {
 }
 
 .method-btn .sub {
-  font-size: 10px;
+  font-size: 12px;
   color: #8892b0;
 }
 
@@ -200,7 +200,7 @@ button:disabled {
 }
 
 .settings-section h3 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   margin-bottom: 8px;
   color: #8892b0;
@@ -214,7 +214,7 @@ button:disabled {
 }
 
 .setting-row label {
-  font-size: 11px;
+  font-size: 14px;
   color: #8892b0;
   min-width: 80px;
 }
@@ -227,7 +227,7 @@ button:disabled {
   border: 1px solid #2a2a3a;
   border-radius: 6px;
   color: #e0e0e0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .setting-row select:focus,
@@ -242,7 +242,7 @@ button:disabled {
   background: #1a1a2e;
   border-radius: 8px;
   margin-bottom: 10px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .ollama-status p {
@@ -260,7 +260,7 @@ button:disabled {
   border: 1px solid rgba(255, 107, 107, 0.3);
   border-radius: 8px;
   color: #ff6b6b;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 10px;
 }
 
@@ -276,7 +276,7 @@ button:disabled {
   border: 1px solid rgba(100, 255, 218, 0.3);
   border-radius: 8px;
   color: #64ffda;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 10px;
 }
 
@@ -288,9 +288,9 @@ textarea {
   border: 1px solid #2a2a3a;
   border-radius: 8px;
   color: #e0e0e0;
-  font-size: 12px;
+  font-size: 14px;
   font-family: inherit;
-  resize: none;
+  resize: vertical;
 }
 
 textarea:focus {
@@ -303,7 +303,7 @@ textarea:focus {
 }
 
 .result-text {
-  min-height: 100px;
+  min-height: 200px;
 }
 
 /* Patterns */
@@ -321,14 +321,14 @@ textarea:focus {
   padding: 4px 8px;
   background: #1a1a2e;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .pattern-item button {
   background: none;
   color: #ff6b6b;
   padding: 0;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .add-pattern {
@@ -344,7 +344,7 @@ textarea:focus {
   border: 1px solid #2a2a3a;
   border-radius: 6px;
   color: #e0e0e0;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .add-pattern span {
@@ -358,7 +358,7 @@ textarea:focus {
   background: linear-gradient(135deg, #64ffda, #48c9b0);
   color: #0a0a0f;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 12px;
 }
 
@@ -400,7 +400,7 @@ textarea:focus {
   border: 1px solid #2a2a3a;
   border-radius: 8px;
   color: #e0e0e0;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -420,7 +420,7 @@ textarea:focus {
   text-align: center;
   padding: 8px;
   color: #4a4a5a;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 /* Scrollbar */

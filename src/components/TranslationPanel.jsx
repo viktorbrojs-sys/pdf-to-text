@@ -151,7 +151,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Error Banner */}
       {error && (
         <div className="error-banner">
-          <span>❌ {error}</span>
+          <span>X {error}</span>
           <button onClick={() => setError(null)}>✕</button>
         </div>
       )}
@@ -159,7 +159,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Status Banner */}
       {statusMessage && (
         <div className="status-banner">
-          <span>ℹ️ {statusMessage}</span>
+          <span>{statusMessage}</span>
         </div>
       )}
 
@@ -181,8 +181,8 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
             {/* Ollama Status */}
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? '✅ Ollama установлен' : '❌ Ollama не установлен'}
-                {ollamaStatus.running ? ' | ✅ Сервер запущен' : ' | ❌ Сервер не запущен'}
+                {ollamaStatus.installed ? 'OK Ollama установлен' : 'X Ollama не установлен'}
+                {ollamaStatus.running ? ' | OK Сервер запущен' : ' | X Сервер не запущен'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -294,7 +294,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         onClick={handleTranslate}
         disabled={isTranslating || !sourceText}
       >
-        {isTranslating ? '⏳ Переводим...' : '🔄 Перевести'}
+        {isTranslating ? '... Переводим...' : '[Translate] Перевести'}
       </button>
 
       {/* Result */}
