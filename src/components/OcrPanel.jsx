@@ -19,7 +19,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   const [aiProvider, setAiProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
-  const [aiModel, setAiModel] = useState('llava');
+  const [aiModel, setAiModel] = useState('');
 
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
@@ -42,10 +42,15 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     try {
       const status = await window.electronAPI.ollamaStatus();
       setOllamaStatus(status);
+      if (status.models && status.models.length > 0 && (!aiModel || aiModel === '')) {
+        setAiModel(status.models[0].name);
+      }
     } catch (err) {
       console.error('Failed to check Ollama status:', err);
     }
   };
+
+  const effectiveAiModel = aiModel || (ollamaStatus.models.length > 0 ? ollamaStatus.models[0].name : '');
 
   const isModelInstalled = (modelName) => {
     const baseName = modelName.split(':')[0];
@@ -127,20 +132,20 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           if (aiProvider === 'ollama' && !ollamaStatus.running) {
             throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
           }
-          if (aiProvider === 'ollama' && !isModelInstalled(aiModel)) {
-            throw new Error(`Модель ${aiModel} не установлена. Скачайте модель.`);
+          if (aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) {
+            throw new Error(`Модель ${effectiveAiModel} не установлена. Скачайте модель.`);
           }
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(5);
-          console.log('Sending to OCR:', { model: aiModel, provider: aiProvider });
+          console.log('Sending to OCR:', { model: effectiveAiModel, provider: aiProvider });
           const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
           if (aiImagesResult.success && aiImagesResult.files?.images) {
-            setStatusMessage(`AI Vision: распознавание (${aiModel})...`);
+            setStatusMessage(`AI Vision: распознавание (${effectiveAiModel})...`);
             setProgress(30);
             const ocrOptions = {
               provider: aiProvider,
               apiKey: apiKey || undefined,
-              model: aiModel
+              model: effectiveAiModel
             };
             console.log('OCR options being sent:', JSON.stringify(ocrOptions));
             response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
@@ -183,7 +188,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     if (!selectedMethod) return false;
     if (isProcessing) return false;
     if (selectedMethod === 'ai' && aiProvider === 'ollama' && !ollamaStatus.running) return false;
-    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !isModelInstalled(aiModel)) return false;
+    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) return false;
     return true;
   };
 
@@ -308,7 +313,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
                   <div className="setting-row">
                     <label>Модель:</label>
-                    <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                    <select value={effectiveAiModel} onChange={(e) => setAiModel(e.target.value)}>
                       {RECOMMENDED_MODELS.map(m => {
                         const installed = isModelInstalled(m.name);
                         return (
@@ -323,14 +328,14 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                     </select>
                   </div>
 
-                  {ollamaStatus.installed && !isModelInstalled(aiModel) && (
+                  {ollamaStatus.installed && !isModelInstalled(effectiveAiModel) && (
                     <div className="download-section">
                       <button 
                         className="pull-btn"
-                        onClick={() => handlePullModel(aiModel)}
+                        onClick={() => handlePullModel(effectiveAiModel)}
                         disabled={!!pullProgress.status}
                       >
-                        {pullProgress.status || `Скачать ${aiModel}`}
+                        {pullProgress.status || `Скачать ${effectiveAiModel}`}
                       </button>
                       {pullProgress.percent !== null && pullProgress.percent > 0 && (
                         <div className="progress-bar">
