@@ -112,15 +112,17 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     try {
       let response;
 
+      const modelToSend = effectiveAiModel || (ollamaStatus.models.length > 0 ? ollamaStatus.models[0].name : 'qwen3-vl:4b');
+
       if (fileInfo?.isImage) {
         setStatusMessage('AI Vision: распознавание изображения...');
         setProgress(20);
         const ocrOptions = {
           provider: aiProvider,
           apiKey: apiKey || undefined,
-          model: effectiveAiModel
+          model: modelToSend
         };
-        console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'effectiveAiModel:', effectiveAiModel);
+        console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'modelToSend:', modelToSend);
         console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
         response = await window.electronAPI.ocrAi(fileInfo.path, ocrOptions);
       } else {
@@ -153,22 +155,22 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
             if (aiProvider === 'ollama' && !ollamaStatus.running) {
               throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
             }
-            if (aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) {
-              throw new Error(`Модель ${effectiveAiModel} не установлена. Скачайте модель.`);
+            if (aiProvider === 'ollama' && !isModelInstalled(modelToSend)) {
+              throw new Error(`Модель ${modelToSend} не установлена. Скачайте модель.`);
             }
             setStatusMessage('Конвертация PDF в изображения...');
             setProgress(5);
-            console.log('Sending to OCR:', { model: effectiveAiModel, provider: aiProvider });
+            console.log('Sending to OCR:', { model: modelToSend, provider: aiProvider });
             const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
             if (aiImagesResult.success && aiImagesResult.files?.images) {
-              setStatusMessage(`AI Vision: распознавание (${effectiveAiModel})...`);
+              setStatusMessage(`AI Vision: распознавание (${modelToSend})...`);
               setProgress(30);
               const ocrOptions = {
                 provider: aiProvider,
                 apiKey: apiKey || undefined,
-                model: effectiveAiModel
+                model: modelToSend
               };
-              console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'effectiveAiModel:', effectiveAiModel);
+              console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'modelToSend:', modelToSend);
               console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
               response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
             } else {
@@ -212,7 +214,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     if (!selectedMethod) return false;
     if (isProcessing) return false;
     if (selectedMethod === 'ai' && aiProvider === 'ollama' && !ollamaStatus.running) return false;
-    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) return false;
+    if (selectedMethod === 'ai' && aiProvider === 'ollama') {
+      const modelToCheck = effectiveAiModel || (ollamaStatus.models.length > 0 ? ollamaStatus.models[0].name : '');
+      if (!modelToCheck || !isModelInstalled(modelToCheck)) return false;
+    }
     return true;
   };
 

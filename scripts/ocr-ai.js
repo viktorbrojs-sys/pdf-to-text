@@ -74,8 +74,13 @@ async function ocrWithOllama(imagePath, options = {}) {
   console.log('DEBUG [ocr-ai.js] ocrWithOllama options:', JSON.stringify(options));
   logger.info('ocrWithOllama called with options:', JSON.stringify(options));
   
-  const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
-  console.log('DEBUG [ocr-ai.js] model after destructuring:', model);
+  const { model = '', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
+
+  if (!model || model === '') {
+    throw new Error('No model specified. Please select a model from the dropdown.');
+  }
+
+  console.log('DEBUG [ocr-ai.js] model:', model);
   logger.info('ocrWithOllama model:', model);
 
   const installedModels = getInstalledModels();
