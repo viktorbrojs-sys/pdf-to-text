@@ -167,8 +167,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('textpdf')}
           disabled={isProcessing}
         >
-          \u25A0 \u0422\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 PDF
-          {fileInfo?.isTextBased && <span className="badge">\u2605</span>}
+          ■ Текстовый PDF
+          {fileInfo?.isTextBased && <span className="badge">★</span>}
         </button>
 
         <button 
@@ -176,8 +176,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('tesseract')}
           disabled={isProcessing}
         >
-          \u25B6 Tesseract
-          <span className="sub">\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439</span>
+          ▸ Tesseract
+          <span className="sub">Локальный</span>
         </button>
 
         <button 
@@ -185,8 +185,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('ai')}
           disabled={isProcessing || (aiProvider === 'ollama' && !ollamaStatus.running)}
         >
-          \u2605 AI Vision
-          <span className="sub">\u0412\u044B\u0441\u043E\u043A\u043E\u0435 \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u043E</span>
+          ★ AI Vision
+          <span className="sub">Высокое качество</span>
         </button>
       </div>
 
@@ -206,8 +206,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           <>
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? '\u2713' : '\u2717'} Ollama
-                {ollamaStatus.running ? ' | \u2713 ON' : ' | \u2717 OFF'}
+                {ollamaStatus.installed ? '✓' : '✗'} Ollama
+                {ollamaStatus.running ? ' | ✓ ON' : ' | ✗ OFF'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -215,7 +215,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                   onClick={handleSetupOllama}
                   disabled={isSettingUp}
                 >
-                  {isSettingUp ? '\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430...' : '\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C'}
+                  {isSettingUp ? 'Установка...' : 'Установить'}
                 </button>
               )}
               {ollamaStatus.installed && !ollamaStatus.running && (
@@ -224,24 +224,24 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                   onClick={handleSetupOllama}
                   disabled={isSettingUp}
                 >
-                  {isSettingUp ? '\u0417\u0430\u043F\u0443\u0441\u043A...' : '\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C'}
+                  {isSettingUp ? 'Запуск...' : 'Запустить'}
                 </button>
               )}
             </div>
 
             <div className="setting-row">
-              <label>\u041C\u043E\u0434\u0435\u043B\u044C:</label>
+              <label>Модель:</label>
               <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
                 {RECOMMENDED_MODELS.map(m => {
                   const installed = isModelInstalled(m.name);
                   return (
                     <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
-                      {installed ? '\u2713' : '\u2717'} {m.label}
+                      {installed ? '✓' : '✗'} {m.label}
                     </option>
                   );
                 })}
                 {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
-                  <option key={m.name} value={m.name}>{'\u2713'} {m.name}</option>
+                  <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
                 ))}
               </select>
             </div>
@@ -252,7 +252,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                 onClick={() => handlePullModel(aiModel)}
                 disabled={!!pullProgress}
               >
-                {pullProgress || `\u0421\u043A\u0430\u0447\u0430\u0442\u044C ${aiModel}`}
+                {pullProgress || `Скачать ${aiModel}`}
               </button>
             )}
           </>
@@ -265,7 +265,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               type="password" 
               value={apiKey} 
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="API \u043A\u043B\u044E\u0447"
+              placeholder="API ключ"
             />
           </div>
         )}
@@ -274,7 +274,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {/* Progress */}
       {isProcessing && (
         <div className="progress-container">
-          <p>{statusMessage || '\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430...'}</p>
+          <p>{statusMessage || 'Обработка...'}</p>
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
@@ -285,17 +285,17 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {error && (
         <div className="error-block">
           <div className="error-message">
-            <span>{'\u2717'} {error}</span>
+            <span>{'✗'} {error}</span>
             <div className="error-actions">
               <button className="retry-btn" onClick={handleRetry} disabled={isProcessing || isRetrying}>
-                {isRetrying ? '\u041F\u043E\u0432\u0442\u043E\u0440...' : '\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C'}
+                {isRetrying ? 'Повтор...' : 'Повторить'}
               </button>
               {errorDetails && (
                 <button 
                   className="details-toggle"
                   onClick={() => setShowErrorDetails(!showErrorDetails)}
                 >
-                  {showErrorDetails ? '\u25B2 \u0421\u043A\u0440\u044B\u0442\u044C' : '\u25BC \u041F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0441\u0442\u0438'}
+                  {showErrorDetails ? '▲ Скрыть' : '▼ Подробности'}
                 </button>
               )}
             </div>
@@ -310,7 +310,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
       {result && (
         <div className="result-container">
-          <h3>\u0420\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442</h3>
+          <h3>Результат</h3>
           <textarea className="result-text" value={result} readOnly rows={6} />
         </div>
       )}

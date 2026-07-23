@@ -182,7 +182,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {error && (
         <div className="error-block">
           <div className="error-banner">
-            <span>{'\u2717'} {error}</span>
+            <span>{'✗'} {error}</span>
             <button onClick={() => { setError(null); setErrorDetails(''); }}>✕</button>
           </div>
           <div className="error-actions">
@@ -194,7 +194,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                 className="details-toggle"
                 onClick={() => setShowErrorDetails(!showErrorDetails)}
               >
-                {showErrorDetails ? '\u25B2 Скрыть' : '\u25BC Подробности'}
+                {showErrorDetails ? '▲ Скрыть' : '▼ Подробности'}
               </button>
             )}
           </div>
@@ -228,8 +228,8 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
           <>
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? '\u2713 Ollama установлен' : '\u2717 Ollama не установлен'}
-                {ollamaStatus.running ? ' | \u2713 Сервер запущен' : ' | \u2717 Сервер не запущен'}
+                {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}
+                {ollamaStatus.running ? ' | ✓ Сервер запущен' : ' | ✗ Сервер не запущен'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -258,12 +258,12 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                   const installed = isModelInstalled(m.name);
                   return (
                     <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
-                      {installed ? '\u2713' : '\u2717'} {m.label}
+                      {installed ? '✓' : '✗'} {m.label}
                     </option>
                   );
                 })}
                 {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
-                  <option key={m.name} value={m.name}>{'\u2713'} {m.name}</option>
+                  <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
                 ))}
               </select>
             </div>
