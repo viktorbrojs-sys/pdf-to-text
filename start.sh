@@ -6,6 +6,8 @@ echo "========================================="
 
 set -e
 
+trap 'kill 0 2>/dev/null; exit' EXIT INT TERM
+
 # Check if git is installed
 if ! command -v git &> /dev/null; then
   echo "✗ Git не установлен. Установите git и попробуйте снова."

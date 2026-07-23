@@ -35,6 +35,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [pullProgress, setPullProgress] = useState({ status: '', percent: null, downloaded: null, total: null, speed: null, eta: null });
   const [isRetrying, setIsRetrying] = useState(false);
   const [resultExpanded, setResultExpanded] = useState(false);
+  const [customModelCollapsed, setCustomModelCollapsed] = useState(true);
 
   useEffect(() => {
     checkOllamaStatus();
@@ -242,8 +243,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {!selectedMethod && (
         <>
           <div className="ollama-status">
-            <p>Провайдер: {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}</p>
-            <p>{ollamaStatus.running ? '✓ Сервер запущен' : '✗ Сервер не запущен'}</p>
+            <p>
+              {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}
+              {ollamaStatus.running ? ' | ✓ Сервер запущен' : ' | ✗ Сервер не запущен'}
+            </p>
             {!ollamaStatus.installed && (
               <button 
                 className="setup-btn"
@@ -323,8 +326,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               {aiProvider === 'ollama' && (
                 <>
                   <div className="ollama-status">
-                    <p>Провайдер: Ollama</p>
-                    <p>Статус: {ollamaStatus.installed ? '✓ Установлен' : '✗ Не установлен'} | {ollamaStatus.running ? '✓ Запущен' : '✗ Не запущен'}</p>
+                    <p>
+                      {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}
+                      {ollamaStatus.running ? ' | ✓ Сервер запущен' : ' | ✗ Сервер не запущен'}
+                    </p>
                     {!ollamaStatus.installed && (
                       <button 
                         className="setup-btn"
@@ -355,17 +360,28 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                     />
                   </div>
 
-                  <div className="setting-row">
-                    <label>Своя модель:</label>
-                    <input
-                      type="text"
-                      value={customModel}
-                      onChange={(e) => setCustomModel(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && customModel.trim()) setAiModel(customModel.trim()); }}
-                      placeholder="name:tag"
-                    />
+                  <div className="settings-section">
+                    <div
+                      className={`collapsible-header ${customModelCollapsed ? 'collapsed' : ''}`}
+                      onClick={() => setCustomModelCollapsed(!customModelCollapsed)}
+                    >
+                      <h3>Своя модель</h3>
+                    </div>
+                    {!customModelCollapsed && (
+                      <>
+                        <div className="setting-row">
+                          <input
+                            type="text"
+                            value={customModel}
+                            onChange={(e) => setCustomModel(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && customModel.trim()) setAiModel(customModel.trim()); }}
+                            placeholder="name:tag"
+                          />
+                        </div>
+                        <p className="model-hint">Введите название модели. Формат: name:tag. Список моделей: ollama.com/library</p>
+                      </>
+                    )}
                   </div>
-                  <p className="model-hint">Введите название модели. Формат: name:tag. Список моделей: ollama.com/library</p>
 
                   <div className="model-recommendation-info">
                     Для русского текста: Qwen3-VL. Для баланса: Llama 3.2 Vision 11B. Для таблиц: GLM-OCR.

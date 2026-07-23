@@ -157,7 +157,7 @@ function App() {
           <>
             <div className="col-left">
               <div className="section" style={{ flex: 1 }}>
-                <h2>▸ Распознавание</h2>
+                <h2>① Распознавание</h2>
                 <OcrPanel
                   fileInfo={fileInfo}
                   onOcrComplete={handleOcrComplete}
@@ -167,7 +167,7 @@ function App() {
 
             <div className="col-center">
               <div className="section">
-                <h2>⇄ Перевод</h2>
+                <h2>② Перевод</h2>
                 <TranslationPanel
                   sourceText={ocrText}
                   onTranslationComplete={handleTranslationComplete}
@@ -181,6 +181,7 @@ function App() {
       <footer className="footer">
         {(translatedText || currentText) && (
           <div className="footer-export">
+            <h2 className="export-title">③ Сохранение</h2>
             <ExportPanel
               text={currentText}
               fileName={fileInfo?.name}

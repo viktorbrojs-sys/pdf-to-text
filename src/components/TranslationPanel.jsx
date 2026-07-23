@@ -370,7 +370,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         {!llmCollapsed && (
           <div className="llm-params">
             <div className="param-row">
-              <label title="Низкие значения = более точный перевод, высокие = более креативный">Temperature</label>
+              <label title="Низкие значения = точнее, высокие = креативнее">Temperature</label>
               <input
                 type="range"
                 min="0" max="2" step="0.1"
@@ -380,7 +380,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
               <span className="param-value">{llmParams.temperature}</span>
             </div>
             <div className="param-row">
-              <label title="Фильтрация по вероятности токенов">Top P</label>
+              <label title="Фильтрация по вероятности">Top P</label>
               <input
                 type="range"
                 min="0" max="1" step="0.05"
@@ -390,7 +390,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
               <span className="param-value">{llmParams.topP}</span>
             </div>
             <div className="param-row">
-              <label title="Ограничение количества кандидатов токенов">Top K</label>
+              <label title="Количество кандидатов-токенов">Top K</label>
               <input
                 type="range"
                 min="1" max="100" step="1"
@@ -400,7 +400,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
               <span className="param-value">{llmParams.topK}</span>
             </div>
             <div className="param-row">
-              <label title="Штраф за повторение слов">Repeat Penalty</label>
+              <label title="Штраф за повторы">Repeat Penalty</label>
               <input
                 type="range"
                 min="1" max="2" step="0.05"
@@ -410,7 +410,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
               <span className="param-value">{llmParams.repeatPenalty}</span>
             </div>
             <div className="param-row">
-              <label title="Максимальное количество токенов для генерации (-1 = авто)">Num Predict</label>
+              <label title="Максимум токенов (-1 = без ограничений)">Num Predict</label>
               <input
                 type="range"
                 min="-1" max="4096" step="1"

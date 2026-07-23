@@ -16,6 +16,7 @@ const ollamaSetup = require('../scripts/ollama-setup');
 const logger = require('../scripts/logger');
 
 let mainWindow;
+let devServerProcess = null;
 
 // Disable sandbox if permissions are not set correctly
 app.commandLine.appendSwitch('no-sandbox');
@@ -42,6 +43,12 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
+    // Track webpack dev server process for cleanup
+    const children = require('child_process').execSync('pgrep -f "webpack serve" || true', { encoding: 'utf-8' }).trim();
+    if (children) {
+      devServerProcess = children.split('\n').filter(Boolean);
+    }
+
     // Wait for dev server to be ready
     waitForServer('http://localhost:3000', 30000)
       .then(() => {
@@ -204,12 +211,30 @@ app.on('activate', () => {
   }
 });
 
+app.on('before-quit', () => {
+  logger.info('App quitting, cleaning up dev server...');
+  if (devServerProcess && devServerProcess.length > 0) {
+    devServerProcess.forEach(pid => {
+      try {
+        process.kill(parseInt(pid), 'SIGTERM');
+      } catch (e) {}
+    });
+  }
+  try {
+    require('child_process').execSync('pkill -f "webpack serve" || true', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+  } catch (e) {}
+  try {
+    require('child_process').execSync('lsof -ti:3000 | xargs -r kill 2>/dev/null || true', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+  } catch (e) {}
+});
+
 // ============ IPC Handlers ============
 
 // Select PDF file
 ipcMain.handle('select-pdf', async () => {
   if (mainWindow) {
-    mainWindow.setAlwaysOnTop(true);
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.moveTop();
   }
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
