@@ -319,6 +319,8 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
 ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
   const startTime = Date.now();
   try {
+    console.log('DEBUG [main.js] ocr-ai received options:', JSON.stringify(options));
+    console.log('DEBUG [main.js] model from options:', options.model);
     logger.info('ocr-ai received options:', JSON.stringify(options));
     mainWindow.webContents.send('status-update', { 
       step: 'ocr', message: `AI Vision: распознавание (${options.model || 'модель'})...`, progress: 30 

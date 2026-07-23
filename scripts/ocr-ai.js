@@ -71,9 +71,11 @@ async function fetchWithTimeout(url, options, timeout) {
 }
 
 async function ocrWithOllama(imagePath, options = {}) {
+  console.log('DEBUG [ocr-ai.js] ocrWithOllama options:', JSON.stringify(options));
   logger.info('ocrWithOllama called with options:', JSON.stringify(options));
   
   const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
+  console.log('DEBUG [ocr-ai.js] model after destructuring:', model);
   logger.info('ocrWithOllama model:', model);
 
   const installedModels = getInstalledModels();
@@ -231,7 +233,9 @@ async function ocrWithGoogleVision(imagePath, options = {}) {
 }
 
 async function ocrWithAI(imagePath, options = {}) {
+  console.log('DEBUG [ocr-ai.js] ocrWithAI options:', JSON.stringify(options));
   const { provider = 'ollama', ...rest } = options;
+  console.log('DEBUG [ocr-ai.js] provider:', provider, 'rest:', JSON.stringify(rest));
   
   switch (provider) {
     case 'ollama':

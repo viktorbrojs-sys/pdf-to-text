@@ -120,6 +120,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           apiKey: apiKey || undefined,
           model: effectiveAiModel
         };
+        console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'effectiveAiModel:', effectiveAiModel);
+        console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
         response = await window.electronAPI.ocrAi(fileInfo.path, ocrOptions);
       } else {
         switch (selectedMethod) {
@@ -166,7 +168,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                 apiKey: apiKey || undefined,
                 model: effectiveAiModel
               };
-              console.log('OCR options being sent:', JSON.stringify(ocrOptions));
+              console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'effectiveAiModel:', effectiveAiModel);
+              console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
               response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
             } else {
               throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
