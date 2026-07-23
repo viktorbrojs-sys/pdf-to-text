@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModelSelect from './ModelSelect';
 
 const VISION_MODELS = [
   { name: 'qwen3-vl:4b', label: 'Qwen3-VL (Alibaba)', description: 'Лучший для русского текста, 32 языка' },
@@ -340,19 +341,12 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
                   <div className="setting-row">
                     <label>Модель:</label>
-                    <select value={effectiveAiModel} onChange={(e) => setAiModel(e.target.value)}>
-                      {VISION_MODELS.map(m => {
-                        const installed = isModelInstalled(m.name);
-                        return (
-                          <option key={m.name} value={m.name}>
-                            {installed ? '✓' : '↓'} {m.label} — {m.description}
-                          </option>
-                        );
-                      })}
-                      {ollamaStatus.models.filter(m => !VISION_MODELS.some(r => r.name === m.name)).map(m => (
-                        <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
-                      ))}
-                    </select>
+                    <ModelSelect
+                      models={VISION_MODELS}
+                      value={effectiveAiModel}
+                      onChange={setAiModel}
+                      installedModels={ollamaStatus.models}
+                    />
                   </div>
 
                   <div className="setting-row">

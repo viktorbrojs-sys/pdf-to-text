@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FileUpload from './components/FileUpload';
 import OcrPanel from './components/OcrPanel';
 import TranslationPanel from './components/TranslationPanel';
@@ -15,6 +15,7 @@ function App() {
   const [translatedText, setTranslatedText] = useState('');
   const [currentText, setCurrentText] = useState('');
   const [ocrMethod, setOcrMethod] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   useEffect(() => {
     console.log('App mounted');
@@ -35,6 +36,45 @@ function App() {
         setStatus('loaded');
       }
     }
+  };
+
+  const handleHeaderDrop = async (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff', 'image/bmp', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Пожалуйста, выберите PDF или изображение');
+      return;
+    }
+    
+    if (window.electronAPI) {
+      const result = await window.electronAPI.selectPdf();
+      if (result) {
+        const filePath = result.path || result;
+        const fileType = result.type || 'pdf';
+        if (fileType === 'image') {
+          setFileInfo({ name: filePath.split('/').pop(), path: filePath, isImage: true, isTextBased: false });
+        } else {
+          const info = await window.electronAPI.getPdfInfo(filePath);
+          setFileInfo({ ...info, path: filePath });
+        }
+        setStatus('loaded');
+      }
+    } else {
+      alert('Для работы с файлами запустите приложение через Electron');
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleDrop = async (e) => {
@@ -100,7 +140,8 @@ function App() {
     setStatus('done');
   };
 
-  const handleReset = () => {
+  const handleReset = (e) => {
+    e.stopPropagation();
     setStatus('idle');
     setFileInfo(null);
     setOcrText('');
@@ -111,13 +152,32 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div>
+      {!fileInfo ? (
+        <div
+          className={`header-large ${isDragOver ? 'drag-over' : ''}`}
+          onClick={handleFileSelect}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleHeaderDrop}
+        >
+          <div className="upload-icon">📄</div>
           <h1>PDF to Text</h1>
-          <p className="subtitle">Распознавание и перевод PDF</p>
+          <p>Нажмите или перетащите PDF/изображение</p>
         </div>
-        <span className="version">v{version}</span>
-      </header>
+      ) : (
+        <header
+          className="header-compact"
+          onClick={handleFileSelect}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleHeaderDrop}
+        >
+          <span>
+            <strong>PDF to Text</strong> — {fileInfo.name}
+          </span>
+          <button className="close-btn" onClick={handleReset}>✕</button>
+        </header>
+      )}
 
       <main className="main three-col">
         {status === 'idle' ? (
@@ -135,11 +195,6 @@ function App() {
             <div className="col-left">
               {fileInfo && (
                 <div className="file-info-card">
-                  <div className="file-info-header">
-                    <span className="file-info-icon">■</span>
-                    <span className="file-name">{fileInfo.name}</span>
-                    <button className="reset-btn" onClick={handleReset}>✗</button>
-                  </div>
                   <div className="file-info-grid">
                     <div className="file-info-item">
                       <span className="file-info-label">Размер</span>

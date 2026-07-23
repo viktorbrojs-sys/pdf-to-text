@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModelSelect from './ModelSelect';
 
 const DEFAULT_SYSTEM_PROMPT = `Ты — профессиональный переводчик. Переведи текст с русского на английский язык.
 Сохрани форматирование: заголовки, списки, таблицы.
@@ -41,6 +42,9 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0, message: '' });
   const [elapsedTime, setElapsedTime] = useState(null);
+  const [promptCollapsed, setPromptCollapsed] = useState(true);
+  const [patternsCollapsed, setPatternsCollapsed] = useState(true);
+  const [resultExpanded, setResultExpanded] = useState(false);
 
   useEffect(() => {
     checkOllamaStatus();
@@ -269,19 +273,12 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
 
             <div className="setting-row">
               <label>Модель:</label>
-              <select value={model} onChange={(e) => setModel(e.target.value)}>
-                {TRANSLATION_MODELS.map(m => {
-                  const installed = isModelInstalled(m.name);
-                  return (
-                    <option key={m.name} value={m.name}>
-                      {installed ? '✓' : '↓'} {m.label} [{m.category}] — {m.description}
-                    </option>
-                  );
-                })}
-                {ollamaStatus.models.filter(m => !TRANSLATION_MODELS.some(r => r.name === m.name)).map(m => (
-                  <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
-                ))}
-              </select>
+              <ModelSelect
+                models={TRANSLATION_MODELS}
+                value={model}
+                onChange={setModel}
+                installedModels={ollamaStatus.models}
+              />
             </div>
 
             <div className="model-recommendation-info">
@@ -337,13 +334,20 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
 
       {/* System Prompt */}
       <div className="settings-section">
-        <h3>Системный промт</h3>
-        <textarea 
-          className="system-prompt"
-          value={systemPrompt}
-          onChange={(e) => setSystemPrompt(e.target.value)}
-          rows={3}
-        />
+        <div
+          className={`collapsible-header ${promptCollapsed ? 'collapsed' : ''}`}
+          onClick={() => setPromptCollapsed(!promptCollapsed)}
+        >
+          <h3>Системный промт</h3>
+        </div>
+        {!promptCollapsed && (
+          <textarea 
+            className="system-prompt"
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            rows={3}
+          />
+        )}
       </div>
 
       {/* Glossary Patterns */}

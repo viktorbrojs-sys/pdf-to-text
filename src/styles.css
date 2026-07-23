@@ -59,6 +59,102 @@ body {
   right: 20px;
 }
 
+/* Header Large (No file loaded) */
+.header-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 60px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  margin-bottom: 12px;
+  border: 2px dashed #3a3a4a;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 200px;
+}
+
+.header-large:hover {
+  border-color: #64ffda;
+  background: linear-gradient(135deg, #1a1a2e 0%, #1a2a3e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(100, 255, 218, 0.15);
+}
+
+.header-large.drag-over {
+  border-color: #64ffda;
+  background: rgba(100, 255, 218, 0.08);
+}
+
+.header-large h1 {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #64ffda, #48c9b0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+.header-large p {
+  color: #8892b0;
+  font-size: 16px;
+}
+
+.header-large .upload-icon {
+  font-size: 48px;
+  color: #64ffda;
+  margin-bottom: 16px;
+}
+
+/* Header Compact (File loaded) */
+.header-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #2a2a3a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-compact:hover {
+  border-color: #64ffda;
+}
+
+.header-compact span {
+  font-size: 14px;
+  color: #e0e0e0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-compact span strong {
+  background: linear-gradient(135deg, #64ffda, #48c9b0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-compact .close-btn {
+  background: rgba(255, 107, 107, 0.15);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+  padding: 4px 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  margin-left: 12px;
+  transition: all 0.2s;
+}
+
+.header-compact .close-btn:hover {
+  background: rgba(255, 107, 107, 0.25);
+}
+
 /* Main Content */
 .main {
   flex: 1;
@@ -927,4 +1023,109 @@ textarea:focus {
   .section {
     max-height: 40vh;
   }
+}
+
+/* Model Select Component */
+.model-select {
+  position: relative;
+  width: 100%;
+}
+
+.model-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 42px;
+}
+
+.model-select-trigger:hover {
+  border-color: #64ffda;
+}
+
+.model-select-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-select-name {
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.model-select-desc {
+  font-size: 11px;
+  color: #8892b0;
+}
+
+.model-select-arrow {
+  font-size: 12px;
+  color: #8892b0;
+  transition: transform 0.2s;
+  margin-left: 8px;
+}
+
+.model-select-arrow.open {
+  transform: rotate(180deg);
+}
+
+.model-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.model-select-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.model-select-option:last-child {
+  border-bottom: none;
+}
+
+.model-select-option:hover {
+  background: rgba(100, 255, 218, 0.08);
+}
+
+.model-select-option.selected {
+  background: rgba(100, 255, 218, 0.12);
+  border-left: 3px solid #64ffda;
+}
+
+.model-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.model-option-name {
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.model-option-desc {
+  font-size: 12px;
+  color: #8892b0;
 }
