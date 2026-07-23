@@ -156,7 +156,7 @@ function App() {
                 </div>
               )}
 
-              <div className="section">
+              <div className="section" style={{ flex: 1 }}>
                 <h2>▸ Распознавание</h2>
                 <OcrPanel
                   fileInfo={fileInfo}
@@ -165,7 +165,7 @@ function App() {
               </div>
 
               {(ocrText || currentText) && (
-                <div className="section">
+                <div className="section" style={{ flex: 'none' }}>
                   <h2>◆ Сохранение</h2>
                   <ExportPanel
                     text={currentText}

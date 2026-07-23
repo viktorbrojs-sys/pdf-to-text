@@ -301,11 +301,12 @@ ipcMain.handle('translate', async (event, text, options) => {
 ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) => {
   try {
     logger.info('Export started', { baseName, formats });
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    const resolvedOutputDir = path.join(app.getAppPath(), 'output');
+    if (!fs.existsSync(resolvedOutputDir)) {
+      fs.mkdirSync(resolvedOutputDir, { recursive: true });
     }
     
-    const results = await exportToMultiple(text, baseName, outputDir, formats);
+    const results = await exportToMultiple(text, baseName, resolvedOutputDir, formats);
     return { success: true, results };
   } catch (error) {
     logger.error('Export failed', { baseName, formats, error: error.message, stack: error.stack });
