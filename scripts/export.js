@@ -183,14 +183,6 @@ async function exportToMultiple(text, baseName, outputDir, formats = ['md', 'doc
   
   return results;
 }
-      results[format] = { success: true, path: outputPath };
-    } catch (error) {
-      results[format] = { success: false, error: error.message };
-    }
-  }
-  
-  return results;
-}
 
 module.exports = {
   exportToMarkdown,
