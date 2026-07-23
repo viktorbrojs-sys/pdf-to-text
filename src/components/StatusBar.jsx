@@ -4,7 +4,7 @@ function StatusBar({ progress, message, fileName }) {
   return (
     <div className="status-bar">
       <div className="file-info">
-        <span className="icon">[PDF]</span>
+        <span className="icon">{'\u25A0'}</span>
         <span className="file-name">{fileName}</span>
       </div>
       
