@@ -29,12 +29,14 @@ body {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  position: relative;
   padding: 10px 20px;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border-radius: 12px;
   margin-bottom: 12px;
   border: 1px solid #2a2a3a;
+  text-align: center;
 }
 
 .header h1 {
@@ -50,6 +52,13 @@ body {
   font-size: 14px;
 }
 
+.header .version {
+  color: #4a4a5a;
+  font-size: 12px;
+  position: absolute;
+  right: 20px;
+}
+
 /* Main Content */
 .main {
   flex: 1;
@@ -60,7 +69,7 @@ body {
 
 .main.three-col {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1.5fr 1fr;
   gap: 12px;
 }
 
@@ -97,6 +106,7 @@ body {
   justify-content: center;
   height: 100%;
   gap: 16px;
+  margin: auto;
 }
 
 .file-upload .icon {
@@ -443,6 +453,11 @@ textarea:focus {
 
 .result-text {
   height: 250px;
+  overflow-y: auto;
+}
+
+.result-container {
+  overflow: visible;
 }
 
 /* Patterns */
@@ -490,6 +505,15 @@ textarea:focus {
   color: #64ffda;
 }
 
+/* Translation Panel */
+.translation-panel {
+  overflow: visible;
+}
+
+.translation-panel h2 {
+  display: none;
+}
+
 /* Translate Button */
 .translate-btn {
   width: 100%;
@@ -504,6 +528,21 @@ textarea:focus {
 .translate-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(100, 255, 218, 0.3);
+}
+
+/* Translation Progress */
+.translation-progress {
+  margin-top: 10px;
+}
+
+.translation-progress .progress-label {
+  font-size: 13px;
+  color: #8892b0;
+  margin-bottom: 6px;
+}
+
+.translation-progress .progress-label.active {
+  color: #64ffda;
 }
 
 /* Progress */

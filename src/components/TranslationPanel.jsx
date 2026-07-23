@@ -36,6 +36,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [newPatternSource, setNewPatternSource] = useState('');
   const [newPatternTarget, setNewPatternTarget] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
+  const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0, message: '' });
 
   useEffect(() => {
     checkOllamaStatus();
@@ -43,6 +44,12 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     if (window.electronAPI?.onOllamaProgress) {
       window.electronAPI.onOllamaProgress((progress) => {
         setPullProgress(progress);
+      });
+    }
+
+    if (window.electronAPI?.onTranslationProgress) {
+      window.electronAPI.onTranslationProgress((progress) => {
+        setTranslateProgress(progress);
       });
     }
   }, []);
@@ -128,6 +135,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     setErrorDetails('');
     setShowErrorDetails(false);
     setResult(null);
+    setTranslateProgress({ current: 0, total: 0, message: 'Переводим...' });
 
     try {
       const glossary = {};
@@ -140,6 +148,8 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         systemPrompt,
         glossary
       });
+
+      setTranslateProgress({ current: 1, total: 1, message: 'Готово!' });
 
       if (response.success) {
         setResult(response.text);
@@ -154,6 +164,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     } finally {
       setIsTranslating(false);
       setIsRetrying(false);
+      setTimeout(() => setTranslateProgress({ current: 0, total: 0, message: '' }), 2000);
     }
   };
 
@@ -176,7 +187,6 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
 
   return (
     <div className="translation-panel">
-      <h2>Перевод</h2>
 
       {/* Error Banner with details */}
       {error && (
@@ -342,6 +352,18 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         </div>
       </div>
 
+      {/* Translation Progress */}
+      {isTranslating && (
+        <div className="translation-progress">
+          <div className="progress-label active">{translateProgress.message || 'Переводим...'}</div>
+          {translateProgress.total > 0 && (
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${(translateProgress.current / translateProgress.total) * 100}%` }} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Translate Button */}
       <button 
         className="translate-btn"
@@ -354,7 +376,6 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Result */}
       {result && (
         <div className="result-container">
-          <h3>Перевод</h3>
           <textarea 
             className="result-text" 
             value={result} 

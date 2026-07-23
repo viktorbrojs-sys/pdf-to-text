@@ -195,36 +195,62 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   return (
     <div className="ocr-panel">
-      {/* Mode selection - 3 buttons when no method selected */}
       {!selectedMethod && (
-        <div className="method-buttons">
-          <button 
-            className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
-            onClick={() => setSelectedMethod('textpdf')}
-            disabled={isProcessing}
-          >
-            Текстовый PDF
-            {fileInfo?.isTextBased && <span className="sub">рекомендуется</span>}
-          </button>
+        <>
+          <div className="ollama-status">
+            <p>
+              Провайдер: {ollamaStatus.installed ? '✓ Ollama установлен' : '✗ Ollama не установлен'}
+              {ollamaStatus.running ? ' | ✓ Сервер запущен' : ' | ✗ Сервер не запущен'}
+            </p>
+            {!ollamaStatus.installed && (
+              <button 
+                className="setup-btn"
+                onClick={handleSetupOllama}
+                disabled={isSettingUp}
+              >
+                {isSettingUp ? 'Установка...' : 'Установить Ollama'}
+              </button>
+            )}
+            {ollamaStatus.installed && !ollamaStatus.running && (
+              <button 
+                className="setup-btn"
+                onClick={handleSetupOllama}
+                disabled={isSettingUp}
+              >
+                {isSettingUp ? 'Запуск...' : 'Запустить Ollama'}
+              </button>
+            )}
+          </div>
 
-          <button 
-            className="method-btn"
-            onClick={() => setSelectedMethod('tesseract')}
-            disabled={isProcessing}
-          >
-            Tesseract
-            <span className="sub">Локальный</span>
-          </button>
+          <div className="method-buttons">
+            <button 
+              className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
+              onClick={() => setSelectedMethod('textpdf')}
+              disabled={isProcessing}
+            >
+              Текстовый PDF
+              {fileInfo?.isTextBased && <span className="sub">рекомендуется</span>}
+            </button>
 
-          <button 
-            className="method-btn ai"
-            onClick={() => setSelectedMethod('ai')}
-            disabled={isProcessing}
-          >
-            AI Vision
-            <span className="sub">Высокое качество</span>
-          </button>
-        </div>
+            <button 
+              className="method-btn"
+              onClick={() => setSelectedMethod('tesseract')}
+              disabled={isProcessing}
+            >
+              Tesseract
+              <span className="sub">Локальный</span>
+            </button>
+
+            <button 
+              className="method-btn ai"
+              onClick={() => setSelectedMethod('ai')}
+              disabled={isProcessing}
+            >
+              AI Vision
+              <span className="sub">Высокое качество</span>
+            </button>
+          </div>
+        </>
       )}
 
       {/* Dynamic content based on selected method */}

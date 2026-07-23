@@ -1,6 +1,6 @@
 {
   "name": "pdf-to-text",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "PDF to Text Translation Tool with Electron UI",
   "main": "electron/main.js",
   "scripts": {

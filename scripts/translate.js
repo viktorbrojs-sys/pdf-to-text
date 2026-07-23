@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 const logger = require('./logger');
 
-const OLLAMA_TIMEOUT = 60000;
+const OLLAMA_TIMEOUT = 300000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
@@ -343,23 +343,84 @@ async function translateWithDeepSeek(text, options = {}) {
 }
 
 /**
+ * Split text into chunks of maxChunkSize characters, breaking at sentence boundaries
+ */
+function splitIntoChunks(text, maxChunkSize = 2000) {
+  if (text.length <= maxChunkSize) return [text];
+  
+  const chunks = [];
+  let remaining = text;
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= maxChunkSize) {
+      chunks.push(remaining);
+      break;
+    }
+    
+    let splitIdx = -1;
+    const searchArea = remaining.substring(0, maxChunkSize);
+    
+    // Try to split at sentence boundary
+    const sentenceEnd = searchArea.lastIndexOf('. ');
+    if (sentenceEnd > maxChunkSize * 0.5) {
+      splitIdx = sentenceEnd + 1;
+    } else {
+      // Try newline
+      const newline = searchArea.lastIndexOf('\n');
+      if (newline > maxChunkSize * 0.3) {
+        splitIdx = newline + 1;
+      } else {
+        // Force split at maxChunkSize
+        splitIdx = maxChunkSize;
+      }
+    }
+    
+    chunks.push(remaining.substring(0, splitIdx).trim());
+    remaining = remaining.substring(splitIdx).trim();
+  }
+  
+  return chunks;
+}
+
+/**
  * Main translation function
  * @param {string} text - Text to translate
  * @param {Object} options - Options
+ * @param {Function} onProgress - Progress callback (optional)
  * @returns {Promise<string>} Translated text
  */
-async function translate(text, options = {}) {
+async function translate(text, options = {}, onProgress = null) {
   const { provider = 'ollama', ...rest } = options;
 
+  const chunks = splitIntoChunks(text, 2000);
+  
+  if (chunks.length === 1) {
+    const result = await translateByProvider(provider, chunks[0], rest);
+    return result;
+  }
+
+  const results = [];
+  for (let i = 0; i < chunks.length; i++) {
+    if (onProgress) {
+      onProgress({ current: i + 1, total: chunks.length, message: `Переводим часть ${i + 1}/${chunks.length}...` });
+    }
+    const translated = await translateByProvider(provider, chunks[i], rest);
+    results.push(translated);
+  }
+  
+  return results.join('\n\n');
+}
+
+async function translateByProvider(provider, text, options) {
   switch (provider) {
     case 'ollama':
-      return translateWithOllama(text, rest);
+      return translateWithOllama(text, options);
     case 'openai':
-      return translateWithOpenAI(text, rest);
+      return translateWithOpenAI(text, options);
     case 'deepl':
-      return translateWithDeepL(text, rest);
+      return translateWithDeepL(text, options);
     case 'deepseek':
-      return translateWithDeepSeek(text, rest);
+      return translateWithDeepSeek(text, options);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

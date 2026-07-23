@@ -327,7 +327,9 @@ ipcMain.handle('translate', async (event, text, options) => {
       step: 'translate', message: 'Перевод текста...', progress: 50 
     });
     
-    const translated = await translate(text, options);
+    const translated = await translate(text, options, (progress) => {
+      mainWindow.webContents.send('translation-progress', progress);
+    });
     return { success: true, text: translated };
   } catch (error) {
     logger.error('Translation failed', { provider: options.provider, error: error.message, stack: error.stack });
