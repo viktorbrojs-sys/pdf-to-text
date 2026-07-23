@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Open file
   openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
   
+  // Open log file
+  openLogFile: () => ipcRenderer.invoke('open-log-file'),
+  
   // Ollama Setup
   ollamaSetup: () => ipcRenderer.invoke('ollama-setup'),
   ollamaModels: () => ipcRenderer.invoke('ollama-models'),

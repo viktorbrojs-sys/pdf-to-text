@@ -34,6 +34,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [pullProgress, setPullProgress] = useState({ status: '', percent: null, downloaded: null, total: null, speed: null, eta: null });
   const [isRetrying, setIsRetrying] = useState(false);
+  const [resultExpanded, setResultExpanded] = useState(false);
 
   useEffect(() => {
     checkOllamaStatus();
@@ -51,8 +52,9 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     try {
       const status = await window.electronAPI.ollamaStatus();
       setOllamaStatus(status);
-      if (status.models && status.models.length > 0 && (!aiModel || aiModel === '')) {
-        setAiModel(status.models[0].name);
+      if (status.models && status.models.length > 0) {
+        const preferred = status.models.find(m => m.name.startsWith('qwen3-vl')) || status.models[0];
+        setAiModel(preferred.name);
       }
     } catch (err) {
       console.error('Failed to check Ollama status:', err);
@@ -101,6 +103,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   const handleOcr = async (isRetry = false) => {
     if (!selectedMethod) return;
+    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !effectiveAiModel) {
+      setError('Не выбрана модель. Выберите модель из списка.');
+      return;
+    }
     setIsProcessing(true);
     setError(null);
     setErrorDetails('');
@@ -459,10 +465,22 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
           {statusMessage && !isProcessing && <div className="status-message">{statusMessage}</div>}
 
-          {/* Result textarea - only shows after completion */}
+          {/* Result textarea - collapsible after completion */}
           {result && (
             <div className="result-container">
-              <textarea className="result-text" value={result} readOnly rows={6} />
+              <div
+                className={`collapsible-header ${!resultExpanded ? 'collapsed' : ''}`}
+                onClick={() => setResultExpanded(!resultExpanded)}
+              >
+                <h3>Распознанный текст</h3>
+              </div>
+              {!resultExpanded ? (
+                <div className="result-collapsed" onClick={() => setResultExpanded(true)}>
+                  Показать результат ({result.length} символов)
+                </div>
+              ) : (
+                <textarea className="result-text" value={result} readOnly rows={6} />
+              )}
             </div>
           )}
         </>

@@ -88,7 +88,7 @@ function ModelSelect({ models, value, onChange, installedModels = [] }) {
             .map(m => (
               <div
                 key={m.name}
-                className={`model-select-option ${m.name === selectedModel ? 'selected' : ''}`}
+                className={`model-select-option not-recommended ${m.name === selectedModel ? 'selected' : ''}`}
                 onClick={() => {
                   setSelectedModel(m.name);
                   onChange(m.name);
@@ -96,7 +96,10 @@ function ModelSelect({ models, value, onChange, installedModels = [] }) {
                 }}
               >
                 <div className="model-option-content">
-                  <span className="model-option-name">✓ {m.name}</span>
+                  <span className="model-option-name not-rec-name">
+                    ✗ {m.name}
+                  </span>
+                  <span className="model-option-desc">не рекомендуется</span>
                 </div>
               </div>
             ))

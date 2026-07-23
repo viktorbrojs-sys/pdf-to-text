@@ -209,33 +209,39 @@ app.on('activate', () => {
 // Select PDF file
 ipcMain.handle('select-pdf', async () => {
   if (mainWindow) {
-    mainWindow.focus();
+    mainWindow.setAlwaysOnTop(true);
   }
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: [
-      { name: 'Supported Files', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] },
-      { name: 'PDF Files', extensions: ['pdf'] },
-      { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] }
-    ]
-  });
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Supported Files', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] },
+        { name: 'PDF Files', extensions: ['pdf'] },
+        { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] }
+      ]
+    });
 
-  if (result.canceled) {
-    logger.info('File selection canceled');
-    return null;
+    if (result.canceled) {
+      logger.info('File selection canceled');
+      return null;
+    }
+    
+    const filePath = result.filePaths[0];
+    const ext = path.extname(filePath).toLowerCase();
+    const imageExts = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.webp'];
+    
+    if (imageExts.includes(ext)) {
+      logger.info('Image file selected', { path: filePath });
+      return { type: 'image', path: filePath };
+    }
+    
+    logger.info('PDF selected', { path: filePath });
+    return { type: 'pdf', path: filePath };
+  } finally {
+    if (mainWindow) {
+      mainWindow.setAlwaysOnTop(false);
+    }
   }
-  
-  const filePath = result.filePaths[0];
-  const ext = path.extname(filePath).toLowerCase();
-  const imageExts = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.webp'];
-  
-  if (imageExts.includes(ext)) {
-    logger.info('Image file selected', { path: filePath });
-    return { type: 'image', path: filePath };
-  }
-  
-  logger.info('PDF selected', { path: filePath });
-  return { type: 'pdf', path: filePath };
 });
 
 // Get PDF info
@@ -592,6 +598,21 @@ ipcMain.handle('download-file', async (event, { filePath, fileName }) => {
 ipcMain.handle('open-file', async (event, filePath) => {
   try {
     await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Open log file
+ipcMain.handle('open-log-file', async () => {
+  try {
+    const logPath = path.join(__dirname, '..', 'logs', 'app.log');
+    if (!fs.existsSync(logPath)) {
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.writeFileSync(logPath, '', 'utf-8');
+    }
+    await shell.openPath(logPath);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
