@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
 const http = require('http');
+const crypto = require('crypto');
 
 // Import modules
 const { getPdfInfo } = require('../scripts/pdfinfo');
@@ -408,19 +409,29 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
       step: 'convert', message: 'Конвертация PDF в изображения...', progress: 20 
     });
     
-    // Clean old images
-    if (fs.existsSync(imagesDir)) {
-      fs.readdirSync(imagesDir).forEach(f => {
-        if (f.endsWith('.png')) fs.unlinkSync(path.join(imagesDir, f));
-      });
+    const fileHash = crypto.createHash('md5').update(fileName).digest('hex').slice(0, 8);
+    const imagePrefix = path.join(imagesDir, `page_${fileHash}`);
+    
+    const existingImages = fs.readdirSync(imagesDir)
+      .filter(f => f.startsWith(`page_${fileHash}`) && f.endsWith('.png'));
+    
+    let images;
+    if (existingImages.length > 0) {
+      images = existingImages.map(f => path.join(imagesDir, f)).sort();
+    } else {
+      if (fs.existsSync(imagesDir)) {
+        fs.readdirSync(imagesDir).forEach(f => {
+          if (f.endsWith('.png')) fs.unlinkSync(path.join(imagesDir, f));
+        });
+      }
+      
+      execSync(`pdftocairo -png -r 100 "${destPath}" "${imagePrefix}"`, { timeout: 120000 });
+      
+      images = fs.readdirSync(imagesDir)
+        .filter(f => f.startsWith(`page_${fileHash}`) && f.endsWith('.png'))
+        .sort()
+        .map(f => path.join(imagesDir, f));
     }
-    
-    execSync(`pdftocairo -png "${destPath}" "${imagesDir}/page"`, { timeout: 60000 });
-    
-    const images = fs.readdirSync(imagesDir)
-      .filter(f => f.endsWith('.png'))
-      .sort()
-      .map(f => path.join(imagesDir, f));
     
     let text = '';
     
