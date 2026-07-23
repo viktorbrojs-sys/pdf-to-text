@@ -16,7 +16,7 @@ function FileUpload({ onFileSelect, onDrop, onFileInput }) {
       <input
         type="file"
         ref={fileInputRef}
-        accept=".pdf"
+        accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp,.webp"
         onChange={onFileInput}
         style={{ display: 'none' }}
       />

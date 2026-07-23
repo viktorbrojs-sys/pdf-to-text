@@ -22,10 +22,16 @@ function App() {
 
   const handleFileSelect = async () => {
     if (window.electronAPI) {
-      const filePath = await window.electronAPI.selectPdf();
-      if (filePath) {
-        const info = await window.electronAPI.getPdfInfo(filePath);
-        setFileInfo({ ...info, path: filePath });
+      const result = await window.electronAPI.selectPdf();
+      if (result) {
+        const filePath = result.path || result;
+        const fileType = result.type || 'pdf';
+        if (fileType === 'image') {
+          setFileInfo({ name: filePath.split('/').pop(), path: filePath, isImage: true, isTextBased: false });
+        } else {
+          const info = await window.electronAPI.getPdfInfo(filePath);
+          setFileInfo({ ...info, path: filePath });
+        }
         setStatus('loaded');
       }
     }
@@ -34,16 +40,24 @@ function App() {
   const handleDrop = async (e) => {
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
-    if (!file || file.type !== 'application/pdf') {
-      alert('Пожалуйста, выберите PDF файл');
+    if (!file) return;
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff', 'image/bmp', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Пожалуйста, выберите PDF или изображение');
       return;
     }
     
     if (window.electronAPI) {
-      const filePath = await window.electronAPI.selectPdf();
-      if (filePath) {
-        const info = await window.electronAPI.getPdfInfo(filePath);
-        setFileInfo({ ...info, path: filePath });
+      const result = await window.electronAPI.selectPdf();
+      if (result) {
+        const filePath = result.path || result;
+        const fileType = result.type || 'pdf';
+        if (fileType === 'image') {
+          setFileInfo({ name: filePath.split('/').pop(), path: filePath, isImage: true, isTextBased: false });
+        } else {
+          const info = await window.electronAPI.getPdfInfo(filePath);
+          setFileInfo({ ...info, path: filePath });
+        }
         setStatus('loaded');
       }
     } else {
@@ -53,13 +67,21 @@ function App() {
 
   const handleFileInput = async (e) => {
     const file = e.target.files[0];
-    if (!file || file.type !== 'application/pdf') return;
+    if (!file) return;
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff', 'image/bmp', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) return;
     
     if (window.electronAPI) {
-      const filePath = await window.electronAPI.selectPdf();
-      if (filePath) {
-        const info = await window.electronAPI.getPdfInfo(filePath);
-        setFileInfo({ ...info, path: filePath });
+      const result = await window.electronAPI.selectPdf();
+      if (result) {
+        const filePath = result.path || result;
+        const fileType = result.type || 'pdf';
+        if (fileType === 'image') {
+          setFileInfo({ name: filePath.split('/').pop(), path: filePath, isImage: true, isTextBased: false });
+        } else {
+          const info = await window.electronAPI.getPdfInfo(filePath);
+          setFileInfo({ ...info, path: filePath });
+        }
         setStatus('loaded');
       }
     }
@@ -123,10 +145,18 @@ function App() {
                       <span className="file-info-label">Размер</span>
                       <span className="file-info-value">{fileInfo.sizeFormatted}</span>
                     </div>
-                    <div className="file-info-item">
-                      <span className="file-info-label">Страницы</span>
-                      <span className="file-info-value">{fileInfo.pages}</span>
-                    </div>
+                    {fileInfo.pages && (
+                      <div className="file-info-item">
+                        <span className="file-info-label">Страницы</span>
+                        <span className="file-info-value">{fileInfo.pages}</span>
+                      </div>
+                    )}
+                    {fileInfo.isImage && (
+                      <div className="file-info-item">
+                        <span className="file-info-label">Тип</span>
+                        <span className="file-info-value">Изображение</span>
+                      </div>
+                    )}
                     {fileInfo.title && (
                       <div className="file-info-item">
                         <span className="file-info-label">Заголовок</span>

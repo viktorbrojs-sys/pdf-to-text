@@ -213,15 +213,29 @@ ipcMain.handle('select-pdf', async () => {
   }
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    filters: [
+      { name: 'Supported Files', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] },
+      { name: 'PDF Files', extensions: ['pdf'] },
+      { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] }
+    ]
   });
 
   if (result.canceled) {
-    logger.info('PDF selection canceled');
+    logger.info('File selection canceled');
     return null;
   }
-  logger.info('PDF selected', { path: result.filePaths[0] });
-  return result.filePaths[0];
+  
+  const filePath = result.filePaths[0];
+  const ext = path.extname(filePath).toLowerCase();
+  const imageExts = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.webp'];
+  
+  if (imageExts.includes(ext)) {
+    logger.info('Image file selected', { path: filePath });
+    return { type: 'image', path: filePath };
+  }
+  
+  logger.info('PDF selected', { path: filePath });
+  return { type: 'pdf', path: filePath };
 });
 
 // Get PDF info
@@ -428,24 +442,34 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     const outputDir = path.join(appPath, 'output');
     const imagesDir = path.join(inputDir, 'images');
     
-    // Ensure directories exist
     [inputDir, outputDir, imagesDir].forEach(dir => {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     });
-    
-    // Copy PDF to input
+
     const fileName = path.basename(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const imageExts = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.webp'];
+
+    if (imageExts.includes(ext)) {
+      const destPath = path.join(inputDir, fileName);
+      fs.copyFileSync(filePath, destPath);
+
+      mainWindow.webContents.send('status-update', {
+        step: 'ocr', message: 'Изображение готово к распознаванию', progress: 100
+      });
+
+      return { success: true, info: { name: fileName, isImage: true }, text: '', files: { images: [destPath], imagesDir: inputDir } };
+    }
+    
     const destPath = path.join(inputDir, fileName);
     fs.copyFileSync(filePath, destPath);
     
-    // Get PDF info
     mainWindow.webContents.send('status-update', { 
       step: 'info', message: 'Анализ файла...', progress: 10 
     });
     
     const info = getPdfInfo(destPath);
     
-    // Convert to images (for OCR methods)
     mainWindow.webContents.send('status-update', { 
       step: 'convert', message: `Конвертация PDF в изображения (${info.pages || '?'} стр.)...`, progress: 20 
     });
@@ -476,15 +500,12 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     
     let text = '';
     
-    // Choose OCR method
     if (method === 'textpdf' || (method === 'auto' && info.isTextBased)) {
-      // Use pdftotext for text-based PDFs
       mainWindow.webContents.send('status-update', { 
         step: 'ocr', message: 'Извлечение текста...', progress: 50 
       });
       text = extractTextFromPdf(destPath);
     } else if (method === 'tesseract') {
-      // Use Tesseract
       const totalImgs = images.length;
       mainWindow.webContents.send('status-update', { 
         step: 'ocr', 
@@ -499,18 +520,15 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
         });
       });
     } else {
-      // Use AI Vision (default)
       mainWindow.webContents.send('status-update', { 
         step: 'ocr', message: 'AI Vision распознавание...', progress: 50 
       });
       
-      // Process first page for now
       if (images.length > 0) {
         text = await ocrWithAI(images[0], options.ocrOptions || {});
       }
     }
     
-    // Save results
     mainWindow.webContents.send('status-update', { 
       step: 'save', message: 'Сохранение результатов...', progress: 90 
     });
@@ -519,7 +537,6 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     const mdFileName = `${baseName}.md`;
     const mdPath = path.join(outputDir, mdFileName);
     
-    // Save as markdown
     fs.writeFileSync(mdPath, `# ${fileName}\n\n${text}`, 'utf-8');
     
     mainWindow.webContents.send('status-update', { 

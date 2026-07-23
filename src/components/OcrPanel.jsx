@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
-const RECOMMENDED_MODELS = [
-  { name: 'qwen2.5:7b', label: 'qwen2.5:7b (рекомендуется)' },
-  { name: 'llama3.1:8b', label: 'llama3.1:8b' },
-  { name: 'mistral:7b', label: 'mistral:7b' },
-  { name: 'llava', label: 'llava (vision)' },
+const VISION_MODELS = [
+  { name: 'qwen3-vl:4b', label: 'Qwen3-VL (Alibaba)', description: 'Лучший для русского текста, 32 языка' },
+  { name: 'llama3.2-vision:11b', label: 'Llama 3.2 Vision (Meta)', description: 'Баланс качества и ресурсов' },
+  { name: 'minicpm-v', label: 'MiniCPM-V (OpenBMB)', description: 'Компактная, хорошее качество' },
+  { name: 'gemma3:4b', label: 'Gemma 3 4B (Google)', description: 'Быстрая, малый размер' },
+  { name: 'gemma3:12b', label: 'Gemma 3 12B (Google)', description: 'Высокое качество' },
+  { name: 'llava:7b', label: 'LLaVA 1.6', description: 'Классическая vision модель' },
+  { name: 'glm-ocr', label: 'GLM-OCR (Zhipu AI)', description: 'Для таблиц, формул, сложных макетов' },
+  { name: 'bakllava', label: 'BakLLaVA (Hugging Face)', description: 'Для рукописного текста' },
+  { name: 'moondream', label: 'Moondream', description: 'Для маломощных устройств, быстрая' },
+  { name: 'granite3.2-vision', label: 'Granite 3.2 Vision (IBM)', description: 'Для документов, таблиц, диаграмм' },
 ];
 
 function OcrPanel({ fileInfo, onOcrComplete }) {
@@ -21,6 +27,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const [aiProvider, setAiProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
+  const [customModel, setCustomModel] = useState('');
 
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
@@ -105,59 +112,70 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     try {
       let response;
 
-      switch (selectedMethod) {
-        case 'textpdf':
-          setStatusMessage('Извлечение текста из PDF...');
-          setProgress(10);
-          const pdfInfo = await window.electronAPI.getPdfInfo(fileInfo.path);
-          const totalPages = pdfInfo.pages || 1;
-          setStatusMessage(`Извлечение текста со всех ${totalPages} страниц...`);
-          setProgress(50);
-          response = await window.electronAPI.ocrTextPdf(fileInfo.path);
-          break;
+      if (fileInfo?.isImage) {
+        setStatusMessage('AI Vision: распознавание изображения...');
+        setProgress(20);
+        const ocrOptions = {
+          provider: aiProvider,
+          apiKey: apiKey || undefined,
+          model: effectiveAiModel
+        };
+        response = await window.electronAPI.ocrAi(fileInfo.path, ocrOptions);
+      } else {
+        switch (selectedMethod) {
+          case 'textpdf':
+            setStatusMessage('Извлечение текста из PDF...');
+            setProgress(10);
+            const pdfInfo = await window.electronAPI.getPdfInfo(fileInfo.path);
+            const totalPages = pdfInfo.pages || 1;
+            setStatusMessage(`Извлечение текста со всех ${totalPages} страниц...`);
+            setProgress(50);
+            response = await window.electronAPI.ocrTextPdf(fileInfo.path);
+            break;
 
-        case 'tesseract':
-          setStatusMessage('Конвертация PDF в изображения...');
-          setProgress(5);
-          const tessImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
-          if (tessImagesResult.success && tessImagesResult.files?.images) {
-            const imgCount = tessImagesResult.files.images.length;
-            setStatusMessage(`Tesseract: 0/${imgCount} страниц...`);
-            setProgress(20);
-            response = await window.electronAPI.ocrTesseract(tessImagesResult.files.imagesDir);
-          } else {
-            throw new Error(tessImagesResult.error || 'Не удалось конвертировать PDF');
-          }
-          break;
+          case 'tesseract':
+            setStatusMessage('Конвертация PDF в изображения...');
+            setProgress(5);
+            const tessImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
+            if (tessImagesResult.success && tessImagesResult.files?.images) {
+              const imgCount = tessImagesResult.files.images.length;
+              setStatusMessage(`Tesseract: 0/${imgCount} страниц...`);
+              setProgress(20);
+              response = await window.electronAPI.ocrTesseract(tessImagesResult.files.imagesDir);
+            } else {
+              throw new Error(tessImagesResult.error || 'Не удалось конвертировать PDF');
+            }
+            break;
 
-        case 'ai':
-          if (aiProvider === 'ollama' && !ollamaStatus.running) {
-            throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
-          }
-          if (aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) {
-            throw new Error(`Модель ${effectiveAiModel} не установлена. Скачайте модель.`);
-          }
-          setStatusMessage('Конвертация PDF в изображения...');
-          setProgress(5);
-          console.log('Sending to OCR:', { model: effectiveAiModel, provider: aiProvider });
-          const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
-          if (aiImagesResult.success && aiImagesResult.files?.images) {
-            setStatusMessage(`AI Vision: распознавание (${effectiveAiModel})...`);
-            setProgress(30);
-            const ocrOptions = {
-              provider: aiProvider,
-              apiKey: apiKey || undefined,
-              model: effectiveAiModel
-            };
-            console.log('OCR options being sent:', JSON.stringify(ocrOptions));
-            response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
-          } else {
-            throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
-          }
-          break;
+          case 'ai':
+            if (aiProvider === 'ollama' && !ollamaStatus.running) {
+              throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
+            }
+            if (aiProvider === 'ollama' && !isModelInstalled(effectiveAiModel)) {
+              throw new Error(`Модель ${effectiveAiModel} не установлена. Скачайте модель.`);
+            }
+            setStatusMessage('Конвертация PDF в изображения...');
+            setProgress(5);
+            console.log('Sending to OCR:', { model: effectiveAiModel, provider: aiProvider });
+            const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
+            if (aiImagesResult.success && aiImagesResult.files?.images) {
+              setStatusMessage(`AI Vision: распознавание (${effectiveAiModel})...`);
+              setProgress(30);
+              const ocrOptions = {
+                provider: aiProvider,
+                apiKey: apiKey || undefined,
+                model: effectiveAiModel
+              };
+              console.log('OCR options being sent:', JSON.stringify(ocrOptions));
+              response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
+            } else {
+              throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
+            }
+            break;
 
-        default:
-          throw new Error('Unknown method');
+          default:
+            throw new Error('Unknown method');
+        }
       }
 
       if (response?.success) {
@@ -232,14 +250,16 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           </div>
 
           <div className="method-buttons">
-            <button 
-              className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
-              onClick={() => setSelectedMethod('textpdf')}
-              disabled={isProcessing}
-            >
-              Текстовый PDF
-              {fileInfo?.isTextBased && <span className="sub">рекомендуется</span>}
-            </button>
+            {!fileInfo?.isImage && (
+              <button 
+                className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
+                onClick={() => setSelectedMethod('textpdf')}
+                disabled={isProcessing}
+              >
+                Текстовый PDF
+                {fileInfo?.isTextBased && <span className="sub">рекомендуется</span>}
+              </button>
+            )}
 
             <button 
               className="method-btn"
@@ -313,18 +333,34 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                   <div className="setting-row">
                     <label>Модель:</label>
                     <select value={effectiveAiModel} onChange={(e) => setAiModel(e.target.value)}>
-                      {RECOMMENDED_MODELS.map(m => {
+                      {VISION_MODELS.map(m => {
                         const installed = isModelInstalled(m.name);
                         return (
                           <option key={m.name} value={m.name}>
-                            {installed ? '✓' : '↓'} {m.label}
+                            {installed ? '✓' : '↓'} {m.label} — {m.description}
                           </option>
                         );
                       })}
-                      {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
+                      {ollamaStatus.models.filter(m => !VISION_MODELS.some(r => r.name === m.name)).map(m => (
                         <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="setting-row">
+                    <label>Своя модель:</label>
+                    <input
+                      type="text"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && customModel.trim()) setAiModel(customModel.trim()); }}
+                      placeholder="name:tag"
+                    />
+                  </div>
+                  <p className="model-hint">Введите название модели. Формат: name:tag. Список моделей: ollama.com/library</p>
+
+                  <div className="model-recommendation-info">
+                    Для русского текста: Qwen3-VL. Для баланса: Llama 3.2 Vision 11B. Для таблиц: GLM-OCR.
                   </div>
 
                   {ollamaStatus.installed && !isModelInstalled(effectiveAiModel) && (
