@@ -216,7 +216,7 @@ async function processMultipleImages(imagePaths, options = {}, onProgress = () =
     texts.push(text);
   }
   
-  return texts.join('\n\n--- PAGE BREAK ---\n\n');
+  return texts.join('\n\n');
 }
 
 module.exports = {

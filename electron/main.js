@@ -237,10 +237,22 @@ ipcMain.handle('get-pdf-info', async (event, filePath) => {
 ipcMain.handle('ocr-textpdf', async (event, filePath) => {
   try {
     mainWindow.webContents.send('status-update', { 
-      step: 'ocr', message: 'Извлечение текста из PDF...', progress: 50 
+      step: 'ocr', message: 'Извлечение текста из PDF...', progress: 25 
+    });
+    
+    const info = getPdfInfo(filePath);
+    const totalPages = info.pages || 1;
+    
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: `Извлечение текста со всех ${totalPages} страниц...`, progress: 50 
     });
     
     const text = extractTextFromPdf(filePath);
+    
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: `Готово: ${totalPages} страниц обработано`, progress: 100 
+    });
+    
     return { success: true, text };
   } catch (error) {
     logger.error('Text PDF extraction failed', { filePath, error: error.message, stack: error.stack });
@@ -252,15 +264,32 @@ ipcMain.handle('ocr-textpdf', async (event, filePath) => {
 ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
   try {
     mainWindow.webContents.send('status-update', { 
-      step: 'ocr', message: 'Распознавание Tesseract...', progress: 30 
+      step: 'ocr', message: 'Подготовка изображений...', progress: 10 
+    });
+    
+    const fs = require('fs');
+    const path = require('path');
+    const imageFiles = fs.readdirSync(imageDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg')).sort();
+    const totalPages = imageFiles.length;
+    
+    if (totalPages === 0) {
+      return { success: false, error: 'No images found in directory' };
+    }
+    
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: `Tesseract: 0/${totalPages} страниц...`, progress: 20 
     });
     
     const text = await processDirectory(imageDir, (current, total, percent) => {
       mainWindow.webContents.send('status-update', { 
         step: 'ocr', 
-        message: `Tesseract: страница ${current}/${total}...`,
-        progress: 30 + Math.round(percent * 0.6)
+        message: `Tesseract: ${current}/${total} страниц (${Math.round(percent)}%)`,
+        progress: 20 + Math.round(percent * 0.7)
       });
+    });
+    
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: `Tesseract готово: ${totalPages} страниц обработано`, progress: 100 
     });
     
     return { success: true, text };
@@ -274,10 +303,15 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
 ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
   try {
     mainWindow.webContents.send('status-update', { 
-      step: 'ocr', message: 'Распознавание AI Vision...', progress: 50 
+      step: 'ocr', message: `AI Vision: распознавание (${options.model || 'модель'})...`, progress: 30 
     });
     
     const text = await ocrWithAI(imagePath, options);
+    
+    mainWindow.webContents.send('status-update', { 
+      step: 'ocr', message: 'AI Vision: завершено', progress: 100 
+    });
+    
     return { success: true, text };
   } catch (error) {
     logger.error('AI Vision OCR failed', { imagePath, options: { ...options, apiKey: options.apiKey ? '***' : undefined }, error: error.message, stack: error.stack });
@@ -406,7 +440,7 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     
     // Convert to images (for OCR methods)
     mainWindow.webContents.send('status-update', { 
-      step: 'convert', message: 'Конвертация PDF в изображения...', progress: 20 
+      step: 'convert', message: `Конвертация PDF в изображения (${info.pages || '?'} стр.)...`, progress: 20 
     });
     
     const fileHash = crypto.createHash('md5').update(fileName).digest('hex').slice(0, 8);
@@ -444,10 +478,16 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
       text = extractTextFromPdf(destPath);
     } else if (method === 'tesseract') {
       // Use Tesseract
+      const totalImgs = images.length;
+      mainWindow.webContents.send('status-update', { 
+        step: 'ocr', 
+        message: `Tesseract: 0/${totalImgs} страниц...`,
+        progress: 30
+      });
       text = await processDirectory(imagesDir, (current, total, percent) => {
         mainWindow.webContents.send('status-update', { 
           step: 'ocr', 
-          message: `Tesseract: ${current}/${total}...`,
+          message: `Tesseract: ${current}/${total} страниц (${Math.round(percent)}%)`,
           progress: 30 + Math.round(percent * 0.6)
         });
       });

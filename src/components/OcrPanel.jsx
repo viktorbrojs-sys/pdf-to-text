@@ -23,11 +23,19 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
 
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [pullProgress, setPullProgress] = useState('');
+  const [pullProgress, setPullProgress] = useState({ status: '', percent: null });
   const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     checkOllamaStatus();
+  }, []);
+
+  useEffect(() => {
+    if (window.electronAPI?.onOllamaProgress) {
+      window.electronAPI.onOllamaProgress((progress) => {
+        setPullProgress(progress);
+      });
+    }
   }, []);
 
   const checkOllamaStatus = async () => {
@@ -63,21 +71,22 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   };
 
   const handlePullModel = async (modelName) => {
-    setPullProgress('Начинаем скачивание...');
+    setPullProgress({ status: 'Начинаем скачивание...', percent: 0 });
     
     try {
       await window.electronAPI.ollamaPull(modelName);
-      setPullProgress('');
+      setPullProgress({ status: 'Готово!', percent: 100 });
       await checkOllamaStatus();
+      setTimeout(() => setPullProgress({ status: '', percent: null }), 2000);
     } catch (err) {
       setError(err.message);
       setErrorDetails(err.stack || '');
-      setPullProgress('');
+      setPullProgress({ status: '', percent: null });
     }
   };
 
-  const handleOcr = async (method, isRetry = false) => {
-    setSelectedMethod(method);
+  const handleOcr = async (isRetry = false) => {
+    if (!selectedMethod) return;
     setIsProcessing(true);
     setError(null);
     setErrorDetails('');
@@ -89,22 +98,28 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     try {
       let response;
 
-      switch (method) {
+      switch (selectedMethod) {
         case 'textpdf':
           setStatusMessage('Извлечение текста из PDF...');
+          setProgress(10);
+          const pdfInfo = await window.electronAPI.getPdfInfo(fileInfo.path);
+          const totalPages = pdfInfo.pages || 1;
+          setStatusMessage(`Извлечение текста со всех ${totalPages} страниц...`);
+          setProgress(50);
           response = await window.electronAPI.ocrTextPdf(fileInfo.path);
           break;
 
         case 'tesseract':
           setStatusMessage('Конвертация PDF в изображения...');
-          setProgress(10);
-          const imagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
-          if (imagesResult.success && imagesResult.files?.images) {
-            setStatusMessage('Распознавание Tesseract...');
-            setProgress(30);
-            response = await window.electronAPI.ocrTesseract(imagesResult.files.imagesDir);
+          setProgress(5);
+          const tessImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'tesseract' });
+          if (tessImagesResult.success && tessImagesResult.files?.images) {
+            const imgCount = tessImagesResult.files.images.length;
+            setStatusMessage(`Tesseract: 0/${imgCount} страниц...`);
+            setProgress(20);
+            response = await window.electronAPI.ocrTesseract(tessImagesResult.files.imagesDir);
           } else {
-            throw new Error(imagesResult.error || 'Не удалось конвертировать PDF');
+            throw new Error(tessImagesResult.error || 'Не удалось конвертировать PDF');
           }
           break;
 
@@ -113,13 +128,13 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
             throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
           }
           if (aiProvider === 'ollama' && !isModelInstalled(aiModel)) {
-            throw new Error(`Модель ${aiModel} не установлена. Скачайте модель или выберите установленную.`);
+            throw new Error(`Модель ${aiModel} не установлена. Скачайте модель.`);
           }
           setStatusMessage('Конвертация PDF в изображения...');
-          setProgress(10);
+          setProgress(5);
           const aiImagesResult = await window.electronAPI.processPdf(fileInfo.path, { method: 'ai' });
           if (aiImagesResult.success && aiImagesResult.files?.images) {
-            setStatusMessage('Распознавание AI Vision...');
+            setStatusMessage(`AI Vision: распознавание (${aiModel})...`);
             setProgress(30);
             response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], {
               provider: aiProvider,
@@ -136,6 +151,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       }
 
       if (response?.success) {
+        setProgress(100);
+        setStatusMessage('Готово!');
         setResult(response.text);
         onOcrComplete(response.text);
       } else {
@@ -144,10 +161,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     } catch (err) {
       const msg = err.message || String(err);
       setError(msg);
-      setErrorDetails(err.stack || response?.details || '');
+      setErrorDetails(err.stack || '');
     } finally {
       setIsProcessing(false);
-      setStatusMessage('');
+      setTimeout(() => setStatusMessage(''), 2000);
       setIsRetrying(false);
     }
   };
@@ -155,164 +172,214 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
   const handleRetry = () => {
     if (selectedMethod) {
       setIsRetrying(true);
-      handleOcr(selectedMethod, true);
+      handleOcr(true);
+    }
+  };
+
+  const canStartOcr = () => {
+    if (!selectedMethod) return false;
+    if (isProcessing) return false;
+    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !ollamaStatus.running) return false;
+    if (selectedMethod === 'ai' && aiProvider === 'ollama' && !isModelInstalled(aiModel)) return false;
+    return true;
+  };
+
+  const getMethodLabel = (method) => {
+    switch (method) {
+      case 'textpdf': return 'Текстовый PDF';
+      case 'tesseract': return 'Tesseract';
+      case 'ai': return 'AI Vision';
+      default: return method;
     }
   };
 
   return (
     <div className="ocr-panel">
-      <div className="method-buttons">
-        <button 
-          className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
-          onClick={() => handleOcr('textpdf')}
-          disabled={isProcessing}
-        >
-          ■ Текстовый PDF
-          {fileInfo?.isTextBased && <span className="badge">★</span>}
-        </button>
+      {/* Mode selection - 3 buttons when no method selected */}
+      {!selectedMethod && (
+        <div className="method-buttons">
+          <button 
+            className={`method-btn ${fileInfo?.isTextBased ? 'recommended' : ''}`}
+            onClick={() => setSelectedMethod('textpdf')}
+            disabled={isProcessing}
+          >
+            Текстовый PDF
+            {fileInfo?.isTextBased && <span className="sub">рекомендуется</span>}
+          </button>
 
-        <button 
-          className="method-btn"
-          onClick={() => handleOcr('tesseract')}
-          disabled={isProcessing}
-        >
-          ▸ Tesseract
-          <span className="sub">Локальный</span>
-        </button>
+          <button 
+            className="method-btn"
+            onClick={() => setSelectedMethod('tesseract')}
+            disabled={isProcessing}
+          >
+            Tesseract
+            <span className="sub">Локальный</span>
+          </button>
 
-        <button 
-          className="method-btn ai"
-          onClick={() => handleOcr('ai')}
-          disabled={isProcessing || (aiProvider === 'ollama' && !ollamaStatus.running)}
-        >
-          ★ AI Vision
-          <span className="sub">Высокое качество</span>
-        </button>
-      </div>
-
-      {/* AI Vision Settings */}
-      <div className="settings-section">
-        <h3>AI Vision</h3>
-        <div className="setting-row">
-          <label>API:</label>
-          <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
-            <option value="ollama">Ollama</option>
-            <option value="openai">OpenAI</option>
-            <option value="google">Google</option>
-          </select>
-        </div>
-
-        {aiProvider === 'ollama' && (
-          <>
-            <div className="ollama-status">
-              <p>
-                {ollamaStatus.installed ? '✓' : '✗'} Ollama
-                {ollamaStatus.running ? ' | ✓ ON' : ' | ✗ OFF'}
-              </p>
-              {!ollamaStatus.installed && (
-                <button 
-                  className="setup-btn"
-                  onClick={handleSetupOllama}
-                  disabled={isSettingUp}
-                >
-                  {isSettingUp ? 'Установка...' : 'Установить'}
-                </button>
-              )}
-              {ollamaStatus.installed && !ollamaStatus.running && (
-                <button 
-                  className="setup-btn"
-                  onClick={handleSetupOllama}
-                  disabled={isSettingUp}
-                >
-                  {isSettingUp ? 'Запуск...' : 'Запустить'}
-                </button>
-              )}
-            </div>
-
-            <div className="setting-row">
-              <label>Модель:</label>
-              <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
-                {RECOMMENDED_MODELS.map(m => {
-                  const installed = isModelInstalled(m.name);
-                  return (
-                    <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
-                      {installed ? '✓' : '✗'} {m.label}
-                    </option>
-                  );
-                })}
-                {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
-                  <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {ollamaStatus.installed && !isModelInstalled(aiModel) && (
-              <button 
-                className="pull-btn"
-                onClick={() => handlePullModel(aiModel)}
-                disabled={!!pullProgress}
-              >
-                {pullProgress || `Скачать ${aiModel}`}
-              </button>
-            )}
-          </>
-        )}
-
-        {aiProvider !== 'ollama' && (
-          <div className="setting-row">
-            <label>Key:</label>
-            <input 
-              type="password" 
-              value={apiKey} 
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="API ключ"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Progress */}
-      {isProcessing && (
-        <div className="progress-container">
-          <p>{statusMessage || 'Обработка...'}</p>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
-          </div>
+          <button 
+            className="method-btn ai"
+            onClick={() => setSelectedMethod('ai')}
+            disabled={isProcessing}
+          >
+            AI Vision
+            <span className="sub">Высокое качество</span>
+          </button>
         </div>
       )}
 
-      {/* Error with details */}
-      {error && (
-        <div className="error-block">
-          <div className="error-message">
-            <span>{'✗'} {error}</span>
-            <div className="error-actions">
-              <button className="retry-btn" onClick={handleRetry} disabled={isProcessing || isRetrying}>
-                {isRetrying ? 'Повтор...' : 'Повторить'}
-              </button>
-              {errorDetails && (
-                <button 
-                  className="details-toggle"
-                  onClick={() => setShowErrorDetails(!showErrorDetails)}
-                >
-                  {showErrorDetails ? '▲ Скрыть' : '▼ Подробности'}
-                </button>
+      {/* Dynamic content based on selected method */}
+      {selectedMethod && (
+        <>
+          {/* Method header with back button */}
+          <div className="selected-method-header">
+            <button className="back-btn" onClick={() => { setSelectedMethod(null); setResult(null); setError(null); }} disabled={isProcessing}>
+              ← Назад
+            </button>
+            <span className="method-title">{getMethodLabel(selectedMethod)}</span>
+          </div>
+
+          {/* AI settings - only for AI method */}
+          {selectedMethod === 'ai' && (
+            <div className="settings-section">
+              <div className="setting-row">
+                <label>API:</label>
+                <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
+                  <option value="ollama">Ollama</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="google">Google</option>
+                </select>
+              </div>
+
+              {aiProvider === 'ollama' && (
+                <>
+                  <div className="ollama-status">
+                    <p>
+                      {ollamaStatus.installed ? '✓' : '✗'} Ollama
+                      {ollamaStatus.running ? ' | ✓ ON' : ' | ✗ OFF'}
+                    </p>
+                    {!ollamaStatus.installed && (
+                      <button 
+                        className="setup-btn"
+                        onClick={handleSetupOllama}
+                        disabled={isSettingUp}
+                      >
+                        {isSettingUp ? 'Установка...' : 'Установить'}
+                      </button>
+                    )}
+                    {ollamaStatus.installed && !ollamaStatus.running && (
+                      <button 
+                        className="setup-btn"
+                        onClick={handleSetupOllama}
+                        disabled={isSettingUp}
+                      >
+                        {isSettingUp ? 'Запуск...' : 'Запустить'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="setting-row">
+                    <label>Модель:</label>
+                    <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                      {RECOMMENDED_MODELS.map(m => {
+                        const installed = isModelInstalled(m.name);
+                        return (
+                          <option key={m.name} value={m.name}>
+                            {installed ? '✓' : '↓'} {m.label}
+                          </option>
+                        );
+                      })}
+                      {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
+                        <option key={m.name} value={m.name}>{'✓'} {m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {ollamaStatus.installed && !isModelInstalled(aiModel) && (
+                    <div className="download-section">
+                      <button 
+                        className="pull-btn"
+                        onClick={() => handlePullModel(aiModel)}
+                        disabled={!!pullProgress.status}
+                      >
+                        {pullProgress.status || `Скачать ${aiModel}`}
+                      </button>
+                      {pullProgress.percent !== null && pullProgress.percent > 0 && (
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: `${pullProgress.percent}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {aiProvider !== 'ollama' && (
+                <div className="setting-row">
+                  <label>Key:</label>
+                  <input 
+                    type="password" 
+                    value={apiKey} 
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="API ключ"
+                  />
+                </div>
               )}
             </div>
-          </div>
-          {showErrorDetails && errorDetails && (
-            <pre className="error-details">{errorDetails}</pre>
           )}
-        </div>
-      )}
 
-      {statusMessage && !isProcessing && <div className="status-message">{statusMessage}</div>}
+          {/* Start button */}
+          <button 
+            className="start-ocr-btn"
+            onClick={() => handleOcr()}
+            disabled={!canStartOcr()}
+          >
+            {isProcessing ? 'Обработка...' : 'Распознать'}
+          </button>
 
-      {result && (
-        <div className="result-container">
-          <h3>Результат</h3>
-          <textarea className="result-text" value={result} readOnly rows={6} />
-        </div>
+          {/* Progress */}
+          {isProcessing && (
+            <div className="progress-container">
+              <p>{statusMessage || 'Обработка...'}</p>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
+
+          {/* Error with details */}
+          {error && (
+            <div className="error-block">
+              <div className="error-message">
+                <span>{error}</span>
+                <div className="error-actions">
+                  <button className="retry-btn" onClick={handleRetry} disabled={isProcessing || isRetrying}>
+                    {isRetrying ? 'Повтор...' : 'Повторить'}
+                  </button>
+                  {errorDetails && (
+                    <button 
+                      className="details-toggle"
+                      onClick={() => setShowErrorDetails(!showErrorDetails)}
+                    >
+                      {showErrorDetails ? '▲ Скрыть' : '▼ Подробности'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {showErrorDetails && errorDetails && (
+                <pre className="error-details">{errorDetails}</pre>
+              )}
+            </div>
+          )}
+
+          {statusMessage && !isProcessing && <div className="status-message">{statusMessage}</div>}
+
+          {/* Result textarea - only shows after completion */}
+          {result && (
+            <div className="result-container">
+              <textarea className="result-text" value={result} readOnly rows={6} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

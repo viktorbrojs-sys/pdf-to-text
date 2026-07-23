@@ -646,6 +646,64 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+/* Selected Method Header */
+.selected-method-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.back-btn {
+  padding: 6px 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #8892b0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover:not(:disabled) {
+  border-color: #64ffda;
+  color: #64ffda;
+}
+
+.method-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #64ffda;
+}
+
+/* Start OCR Button */
+.start-ocr-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #64ffda, #48c9b0);
+  color: #0a0a0f;
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.start-ocr-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 255, 218, 0.3);
+}
+
+/* Download Section */
+.download-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.download-section .progress-bar {
+  margin-bottom: 0;
+}
+
 .setting-row select option:disabled {
   color: #5a5a6a;
   opacity: 0.6;

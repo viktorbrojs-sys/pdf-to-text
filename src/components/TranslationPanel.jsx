@@ -257,8 +257,8 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                 {RECOMMENDED_MODELS.map(m => {
                   const installed = isModelInstalled(m.name);
                   return (
-                    <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
-                      {installed ? '✓' : '✗'} {m.label}
+                    <option key={m.name} value={m.name}>
+                      {installed ? '✓' : '↓'} {m.label}
                     </option>
                   );
                 })}
@@ -269,7 +269,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
             </div>
 
             {ollamaStatus.installed && !isModelInstalled(model) && (
-              <div className="pull-model">
+              <div className="download-section">
                 <button 
                   className="pull-btn"
                   onClick={() => handlePullModel(model)}
@@ -277,7 +277,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                 >
                   {pullProgress.status || `Скачать ${model}`}
                 </button>
-                {pullProgress.percent !== null && (
+                {pullProgress.percent !== null && pullProgress.percent > 0 && (
                   <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${pullProgress.percent}%` }} />
                   </div>
