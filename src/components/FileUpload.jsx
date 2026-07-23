@@ -26,7 +26,7 @@ function FileUpload({ onFileSelect, onDrop, onFileInput }) {
         onDragOver={(e) => e.preventDefault()}
         onClick={handleClick}
       >
-        <div className="icon">[PDF]</div>
+        <div className="icon">\u2B06</div>
         <p className="drop-text">Перетащите PDF</p>
         <p className="drop-subtext">или нажмите для выбора</p>
       </div>

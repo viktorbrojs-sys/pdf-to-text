@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
@@ -12,6 +12,7 @@ const { ocrWithAI } = require('../scripts/ocr-ai');
 const { translate } = require('../scripts/translate');
 const { exportToMultiple } = require('../scripts/export');
 const ollamaSetup = require('../scripts/ollama-setup');
+const logger = require('../scripts/logger');
 
 let mainWindow;
 
@@ -115,6 +116,7 @@ function waitForServer(url, timeout) {
 function tryStartOllama() {
   try {
     execSync('ollama list', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+    logger.info('Ollama is already running');
     return;
   } catch (e) {}
 
@@ -124,13 +126,14 @@ function tryStartOllama() {
       stdio: 'ignore'
     });
     child.unref();
-    console.log('Ollama serve started');
+    logger.info('Ollama serve started');
   } catch (e) {
-    console.log('Could not start ollama serve:', e.message);
+    logger.warn('Could not start ollama serve', { error: e.message });
   }
 }
 
 app.whenReady().then(() => {
+  logger.info('App starting');
   tryStartOllama();
   createWindow();
 });
@@ -155,8 +158,12 @@ ipcMain.handle('select-pdf', async () => {
     properties: ['openFile'],
     filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
   });
-  
-  if (result.canceled) return null;
+
+  if (result.canceled) {
+    logger.info('PDF selection canceled');
+    return null;
+  }
+  logger.info('PDF selected', { path: result.filePaths[0] });
   return result.filePaths[0];
 });
 
@@ -221,6 +228,7 @@ ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
 // Translation
 ipcMain.handle('translate', async (event, text, options) => {
   try {
+    logger.info('Translation started', { provider: options.provider || 'ollama', textLength: text.length });
     mainWindow.webContents.send('status-update', { 
       step: 'translate', message: 'Перевод текста...', progress: 50 
     });
@@ -235,6 +243,7 @@ ipcMain.handle('translate', async (event, text, options) => {
 // Export file
 ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) => {
   try {
+    logger.info('Export started', { baseName, formats });
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -288,6 +297,7 @@ ipcMain.handle('ollama-status', async () => {
     const installed = ollamaSetup.isOllamaInstalled();
     const running = ollamaSetup.isOllamaRunning();
     const models = installed ? ollamaSetup.getInstalledModels() : [];
+    logger.info('Ollama status checked', { installed, running, modelCount: models.length });
     return { success: true, installed, running, models };
   } catch (error) {
     return { success: false, error: error.message };
@@ -298,6 +308,7 @@ ipcMain.handle('ollama-status', async () => {
 ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
   try {
     const { method = 'auto' } = options;
+    logger.info('PDF processing started', { filePath, method });
     const appPath = app.getAppPath();
     const inputDir = path.join(appPath, 'input');
     const outputDir = path.join(appPath, 'output');
@@ -397,6 +408,7 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     return { success: true, info, text, mdPath, files: { images, imagesDir } };
     
   } catch (error) {
+    logger.error('PDF processing failed', { error: error.message });
     mainWindow.webContents.send('status-update', { 
       step: 'error', 
       message: `Ошибка: ${error.message}`,
@@ -405,6 +417,11 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     });
     return { success: false, error: error.message };
   }
+});
+
+// Get recent logs
+ipcMain.handle('get-logs', async () => {
+  return logger.getRecentLogs(100);
 });
 
 // Download file
@@ -419,4 +436,14 @@ ipcMain.handle('download-file', async (event, { filePath, fileName }) => {
     return true;
   }
   return false;
+});
+
+// Open file with system default application
+ipcMain.handle('open-file', async (event, filePath) => {
+  try {
+    await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });

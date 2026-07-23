@@ -23,11 +23,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Download
   downloadFile: (options) => ipcRenderer.invoke('download-file', options),
   
+  // Open file
+  openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
+  
   // Ollama Setup
   ollamaSetup: () => ipcRenderer.invoke('ollama-setup'),
   ollamaModels: () => ipcRenderer.invoke('ollama-models'),
   ollamaPull: (modelName) => ipcRenderer.invoke('ollama-pull', modelName),
   ollamaStatus: () => ipcRenderer.invoke('ollama-status'),
+  
+  // Logs
+  getLogs: () => ipcRenderer.invoke('get-logs'),
   
   // Status updates
   onStatusUpdate: (callback) => {

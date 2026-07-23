@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 /**
  * Translation Module
@@ -92,6 +93,7 @@ async function translateWithOllama(text, options = {}) {
   } = options;
   
   const processedText = applyGlossary(text, glossary);
+  logger.info('Ollama translation request', { model, textLength: text.length });
   
   try {
     const response = await fetch('http://localhost:11434/api/generate', {
@@ -118,8 +120,10 @@ async function translateWithOllama(text, options = {}) {
     return restoreGlossary(data.response, glossary);
   } catch (error) {
     if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+      logger.error('Ollama connection refused', { error: error.message });
       throw new Error('Ollama is not running. Start it with: ollama serve');
     }
+    logger.error('Ollama translation error', { error: error.message });
     throw new Error(`Ollama error: ${error.message}`);
   }
 }
@@ -141,6 +145,7 @@ async function translateWithOpenAI(text, options = {}) {
   if (!apiKey) throw new Error('OpenAI API key required');
   
   const processedText = applyGlossary(text, glossary);
+  logger.info('OpenAI translation request', { model });
   
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -165,6 +170,7 @@ async function translateWithOpenAI(text, options = {}) {
     
     return restoreGlossary(data.choices[0].message.content, glossary);
   } catch (error) {
+    logger.error('OpenAI API error', { error: error.message });
     throw new Error(`OpenAI API error: ${error.message}`);
   }
 }
@@ -181,6 +187,7 @@ async function translateWithDeepL(text, options = {}) {
   if (!apiKey) throw new Error('DeepL API key required');
   
   const processedText = applyGlossary(text, glossary);
+  logger.info('DeepL translation request');
   
   try {
     const response = await fetch('https://api-free.deepl.com/v2/translate', {
@@ -202,6 +209,7 @@ async function translateWithDeepL(text, options = {}) {
     
     return restoreGlossary(data.translations[0].text, glossary);
   } catch (error) {
+    logger.error('DeepL API error', { error: error.message });
     throw new Error(`DeepL API error: ${error.message}`);
   }
 }
@@ -223,6 +231,7 @@ async function translateWithDeepSeek(text, options = {}) {
   if (!apiKey) throw new Error('DeepSeek API key required');
 
   const processedText = applyGlossary(text, glossary);
+  logger.info('DeepSeek translation request', { model });
 
   try {
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -247,6 +256,7 @@ async function translateWithDeepSeek(text, options = {}) {
 
     return restoreGlossary(data.choices[0].message.content, glossary);
   } catch (error) {
+    logger.error('DeepSeek API error', { error: error.message });
     throw new Error(`DeepSeek API error: ${error.message}`);
   }
 }

@@ -136,7 +136,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('textpdf')}
           disabled={isProcessing}
         >
-          [PDF] Текстовый PDF
+          \u25A0 \u0422\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 PDF
           {fileInfo?.isTextBased && <span className="badge">★</span>}
         </button>
 
@@ -145,7 +145,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('tesseract')}
           disabled={isProcessing}
         >
-          [OCR] Tesseract
+          \u25B6 Tesseract
           <span className="sub">Локальный</span>
         </button>
 
@@ -154,7 +154,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           onClick={() => handleOcr('ai')}
           disabled={isProcessing}
         >
-          [AI] AI Vision
+          \u2605 AI Vision
           <span className="sub">Высокое качество</span>
         </button>
       </div>
@@ -175,8 +175,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           <>
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? 'OK' : 'X'} Ollama
-                {ollamaStatus.running ? ' | OK ON' : ' | X OFF'}
+                {ollamaStatus.installed ? '\u2713' : '\u2717'} Ollama
+                {ollamaStatus.running ? ' | \u2713 ON' : ' | \u2717 OFF'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -237,7 +237,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
         </div>
       )}
 
-      {error && <div className="error-message">X {error}</div>}
+      {error && <div className="error-message">{'\u2717'} {error}</div>}
       {statusMessage && !isProcessing && <div className="status-message">{statusMessage}</div>}
 
       {result && (

@@ -18,6 +18,8 @@ function getPdfInfo(pdfPath) {
     pages: 0,
     title: '',
     author: '',
+    creationDate: '',
+    pdfVersion: '',
     isTextBased: false
   };
 
@@ -32,6 +34,12 @@ function getPdfInfo(pdfPath) {
     
     const authorMatch = info.match(/Author:\s+(.+)/);
     if (authorMatch) pdfInfo.author = authorMatch[1].trim();
+
+    const creationDateMatch = info.match(/CreationDate:\s+(.+)/);
+    if (creationDateMatch) pdfInfo.creationDate = creationDateMatch[1].trim();
+
+    const pdfVersionMatch = info.match(/PDF version:\s+(.+)/);
+    if (pdfVersionMatch) pdfInfo.pdfVersion = pdfVersionMatch[1].trim();
     
   } catch (e) {
     console.error('pdfinfo error:', e.message);

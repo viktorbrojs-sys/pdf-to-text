@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 function sanitizeControlChars(str) {
   return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
@@ -154,11 +155,13 @@ async function exportToPdf(text, outputPath) {
  */
 async function exportToMultiple(text, baseName, outputDir, formats = ['md', 'docx', 'pdf']) {
   const results = {};
+  logger.info('Export to multiple formats', { baseName, formats });
   
   for (const format of formats) {
     const outputPath = path.join(outputDir, `${baseName}.${format}`);
     
     try {
+      logger.info('Exporting format', { format, outputPath });
       switch (format) {
         case 'md':
           exportToMarkdown(text, outputPath);
@@ -170,6 +173,16 @@ async function exportToMultiple(text, baseName, outputDir, formats = ['md', 'doc
           await exportToPdf(text, outputPath);
           break;
       }
+      results[format] = { success: true, path: outputPath };
+      logger.info('Export successful', { format, outputPath });
+    } catch (error) {
+      results[format] = { success: false, error: error.message };
+      logger.error('Export failed', { format, error: error.message });
+    }
+  }
+  
+  return results;
+}
       results[format] = { success: true, path: outputPath };
     } catch (error) {
       results[format] = { success: false, error: error.message };
