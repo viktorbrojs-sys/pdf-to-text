@@ -154,7 +154,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
         setProgress(100);
         setStatusMessage('Готово!');
         setResult(response.text);
-        onOcrComplete(response.text);
+        onOcrComplete(response.text, selectedMethod);
       } else {
         throw new Error(response?.error || 'Неизвестная ошибка');
       }

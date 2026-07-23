@@ -14,6 +14,7 @@ function App() {
   const [ocrText, setOcrText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [currentText, setCurrentText] = useState('');
+  const [ocrMethod, setOcrMethod] = useState(null);
 
   useEffect(() => {
     console.log('App mounted');
@@ -64,9 +65,10 @@ function App() {
     }
   };
 
-  const handleOcrComplete = (text) => {
+  const handleOcrComplete = (text, method) => {
     setOcrText(text);
     setCurrentText(text);
+    setOcrMethod(method);
     setStatus('ocr');
   };
 
@@ -82,6 +84,7 @@ function App() {
     setOcrText('');
     setTranslatedText('');
     setCurrentText('');
+    setOcrMethod(null);
   };
 
   return (
@@ -163,16 +166,6 @@ function App() {
                   onOcrComplete={handleOcrComplete}
                 />
               </div>
-
-              {(ocrText || currentText) && (
-                <div className="section" style={{ flex: 'none' }}>
-                  <h2>◆ Сохранение</h2>
-                  <ExportPanel
-                    text={currentText}
-                    fileName={fileInfo?.name}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="col-center">
@@ -192,6 +185,8 @@ function App() {
                   <ExportPanel
                     text={currentText}
                     fileName={fileInfo?.name}
+                    ocrMethod={ocrMethod}
+                    translatedText={translatedText}
                   />
                 </div>
               )}

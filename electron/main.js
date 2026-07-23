@@ -459,7 +459,7 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
         });
       }
       
-      execSync(`pdftocairo -png -r 100 "${destPath}" "${imagePrefix}"`, { timeout: 120000 });
+      execSync(`pdftocairo -png "${destPath}" "${imagePrefix}"`, { timeout: 120000 });
       
       images = fs.readdirSync(imagesDir)
         .filter(f => f.startsWith(`page_${fileHash}`) && f.endsWith('.png'))

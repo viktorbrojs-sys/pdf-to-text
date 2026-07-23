@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 
-function ExportPanel({ text, fileName }) {
+function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
   const [exporting, setExporting] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+
+  const getMethodSuffix = () => {
+    if (translatedText) return '_EN';
+    switch (ocrMethod) {
+      case 'textpdf': return '_Text';
+      case 'tesseract': return '_OCR';
+      case 'ai': return '_AI';
+      default: return '';
+    }
+  };
 
   const handleExport = async (formats) => {
     if (!text) {
@@ -16,7 +26,7 @@ function ExportPanel({ text, fileName }) {
     setResults(null);
 
     try {
-      const baseName = fileName?.replace('.pdf', '') || 'output';
+      const baseName = (fileName?.replace('.pdf', '') || 'output') + getMethodSuffix();
       const outputDir = window.electronAPI.outputDir || './output';
 
       const response = await window.electronAPI.exportFile(
@@ -44,7 +54,7 @@ function ExportPanel({ text, fileName }) {
     }
   };
 
-  const baseName = fileName?.replace('.pdf', '') || 'output';
+  const baseName = (fileName?.replace('.pdf', '') || 'output') + getMethodSuffix();
 
   return (
     <div className="export-panel">
@@ -90,7 +100,7 @@ function ExportPanel({ text, fileName }) {
         <div className="export-results">
           {Object.entries(results).map(([format, result]) => (
             <div key={format} className={`export-result ${result.success ? 'success' : 'error'}`}>
-              <span className="format">{baseName}_EN.{format}</span>
+              <span className="format">{baseName}.{format}</span>
               <span className="result-status">{result.success ? '✓ Сохранено' : '✗ Ошибка'}</span>
               {result.success && result.path && (
                 <button className="open-btn" onClick={() => handleOpenFile(result.path)}>
