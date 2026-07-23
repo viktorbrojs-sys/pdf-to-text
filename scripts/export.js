@@ -86,8 +86,7 @@ async function exportToPdf(text, outputPath) {
     doc.setFont('DejaVuSans');
   }
 
-  const fontSize = 10;
-  const lineHeight = fontSize * 1.5;
+  const bodyFontSize = 10;
   const margin = 50;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -101,43 +100,63 @@ async function exportToPdf(text, outputPath) {
     y = margin;
   }
 
+  function setBodyFont() {
+    doc.setFontSize(bodyFontSize);
+    doc.setFont(undefined, 'normal');
+  }
+
+  function getLineHeight(size) {
+    return size * 1.5;
+  }
+
+  setBodyFont();
+
   for (const line of lines) {
     if (y > pageHeight - margin) {
       newPage();
     }
 
     if (line.startsWith('# ')) {
-      doc.setFontSize(18);
+      doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
       const wrapped = doc.splitTextToSize(line.substring(2), maxWidth);
       for (const wl of wrapped) {
         if (y > pageHeight - margin) newPage();
         doc.text(wl, margin, y);
-        y += 18 * 1.5;
+        y += getLineHeight(14);
       }
-      doc.setFontSize(fontSize);
-      doc.setFont(undefined, 'normal');
-      y += 4;
+      setBodyFont();
+      y += 6;
     } else if (line.startsWith('## ')) {
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       const wrapped = doc.splitTextToSize(line.substring(3), maxWidth);
       for (const wl of wrapped) {
         if (y > pageHeight - margin) newPage();
         doc.text(wl, margin, y);
-        y += 14 * 1.5;
+        y += getLineHeight(12);
       }
-      doc.setFontSize(fontSize);
-      doc.setFont(undefined, 'normal');
-      y += 2;
+      setBodyFont();
+      y += 4;
+    } else if (line.startsWith('### ')) {
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      const wrapped = doc.splitTextToSize(line.substring(4), maxWidth);
+      for (const wl of wrapped) {
+        if (y > pageHeight - margin) newPage();
+        doc.text(wl, margin, y);
+        y += getLineHeight(11);
+      }
+      setBodyFont();
+      y += 3;
     } else if (line.trim() === '') {
-      y += lineHeight;
+      y += getLineHeight(bodyFontSize);
     } else {
       const wrapped = doc.splitTextToSize(line, maxWidth);
       for (const wl of wrapped) {
         if (y > pageHeight - margin) newPage();
         doc.text(wl, margin, y);
-        y += lineHeight;
+        y += getLineHeight(bodyFontSize);
       }
     }
   }

@@ -207,6 +207,9 @@ app.on('activate', () => {
 
 // Select PDF file
 ipcMain.handle('select-pdf', async () => {
+  if (mainWindow) {
+    mainWindow.focus();
+  }
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
