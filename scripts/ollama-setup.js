@@ -128,36 +128,89 @@ function isModelInstalled(modelName) {
   return models.some(m => m.name === modelName || m.name.startsWith(modelName.split(':')[0]));
 }
 
+function stripAnsi(str) {
+  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\[\?[0-9]*[a-z]/g, '');
+}
+
+function parsePullProgress(cleaned) {
+  const progress = { percent: null, downloaded: null, total: null, speed: null, eta: null };
+
+  const pctMatch = cleaned.match(/(\d+)%/);
+  if (pctMatch) progress.percent = parseInt(pctMatch[1], 10);
+
+  const sizeMatch = cleaned.match(/([\d.]+\s*[KMG]B)\s*\/\s*([\d.]+\s*[KMG]B)/i);
+  if (sizeMatch) {
+    progress.downloaded = sizeMatch[1].trim();
+    progress.total = sizeMatch[2].trim();
+  }
+
+  const speedMatch = cleaned.match(/([\d.]+\s*[KMG]B\/s)/i);
+  if (speedMatch) progress.speed = speedMatch[1].trim();
+
+  const etaMatch = cleaned.match(/(\d+[smhd]\d*[smhd]?|\d+[smhd])/);
+  if (etaMatch) progress.eta = etaMatch[1].trim();
+
+  return progress;
+}
+
 /**
  * Pull model with progress
  */
 async function pullModel(modelName, onProgress = () => {}) {
   return new Promise((resolve, reject) => {
-    const process = spawn('ollama', ['pull', modelName]);
+    const child = spawn('ollama', ['pull', modelName]);
     let output = '';
+    let buf = '';
     
-    process.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(l => l.trim());
-      for (const line of lines) {
+    child.stdout.on('data', (data) => {
+      buf += data.toString();
+      const parts = buf.split('\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        const cleaned = stripAnsi(part).trim();
+        if (!cleaned) continue;
         try {
-          const json = JSON.parse(line);
+          const json = JSON.parse(cleaned);
           if (json.status) {
-            onProgress({ status: json.status, percent: json.completed ? Math.round((json.completed / json.total) * 100) : null });
+            const pct = json.completed != null && json.total
+              ? Math.round((json.completed / json.total) * 100)
+              : null;
+            onProgress({ status: json.status, percent: pct });
           }
         } catch (e) {
-          onProgress({ status: line, percent: null });
+          const parsed = parsePullProgress(cleaned);
+          onProgress({ status: cleaned, percent: parsed.percent, downloaded: parsed.downloaded, total: parsed.total, speed: parsed.speed, eta: parsed.eta });
         }
       }
     });
     
-    process.stderr.on('data', (data) => {
-      const line = data.toString();
-      if (line.includes('pulling') || line.includes('verifying')) {
-        onProgress({ status: line.trim(), percent: null });
+    child.stderr.on('data', (data) => {
+      buf += data.toString();
+      const parts = buf.split('\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        const cleaned = stripAnsi(part).trim();
+        if (!cleaned) continue;
+        if (cleaned.includes('pulling') || cleaned.includes('verifying')) {
+          const parsed = parsePullProgress(cleaned);
+          onProgress({ status: cleaned, percent: parsed.percent, downloaded: parsed.downloaded, total: parsed.total, speed: parsed.speed, eta: parsed.eta });
+        }
       }
     });
     
-    process.on('close', (code) => {
+    child.on('close', (code) => {
+      if (buf.trim()) {
+        const cleaned = stripAnsi(buf).trim();
+        try {
+          const json = JSON.parse(cleaned);
+          if (json.status) {
+            onProgress({ status: json.status, percent: null });
+          }
+        } catch (e) {
+          const parsed = parsePullProgress(cleaned);
+          onProgress({ status: cleaned, percent: parsed.percent });
+        }
+      }
       if (code === 0) {
         resolve(true);
       } else {
@@ -165,7 +218,7 @@ async function pullModel(modelName, onProgress = () => {}) {
       }
     });
     
-    process.on('error', (error) => {
+    child.on('error', (error) => {
       reject(error);
     });
   });

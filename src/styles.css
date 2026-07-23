@@ -784,6 +784,21 @@ textarea:focus {
   margin-bottom: 0;
 }
 
+.download-section .progress-info {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+.download-section .progress-status-text {
+  font-size: 11px;
+  color: #888;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .setting-row select option:disabled {
   color: #5a5a6a;
   opacity: 0.6;

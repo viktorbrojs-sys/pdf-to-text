@@ -24,7 +24,7 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [pullProgress, setPullProgress] = useState({ status: '', percent: null });
+  const [pullProgress, setPullProgress] = useState({ status: '', percent: null, downloaded: null, total: null, speed: null, eta: null });
   
   const [provider, setProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
@@ -103,18 +103,18 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   };
 
   const handlePullModel = async (modelName) => {
-    setPullProgress({ status: 'Начинаем скачивание...', percent: 0 });
+    setPullProgress({ status: 'Начинаем скачивание...', percent: 0, downloaded: null, total: null, speed: null, eta: null });
     
     try {
       await window.electronAPI.ollamaPull(modelName);
-      setPullProgress({ status: 'Готово!', percent: 100 });
+      setPullProgress({ status: 'Готово!', percent: 100, downloaded: null, total: null, speed: null, eta: null });
       await checkOllamaStatus();
       setModel(modelName);
-      setTimeout(() => setPullProgress({ status: '', percent: null }), 2000);
+      setTimeout(() => setPullProgress({ status: '', percent: null, downloaded: null, total: null, speed: null, eta: null }), 2000);
     } catch (err) {
       setError(err.message);
       setErrorDetails(err.stack || '');
-      setPullProgress({ status: '', percent: null });
+      setPullProgress({ status: '', percent: null, downloaded: null, total: null, speed: null, eta: null });
     }
   };
 
@@ -295,12 +295,27 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                   onClick={() => handlePullModel(model)}
                   disabled={!!pullProgress.status}
                 >
-                  {pullProgress.status || `Скачать ${model}`}
+                  {pullProgress.percent != null && pullProgress.percent > 0
+                    ? `Скачать ${model}`
+                    : (pullProgress.status || `Скачать ${model}`)}
                 </button>
-                {pullProgress.percent !== null && pullProgress.percent > 0 && (
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${pullProgress.percent}%` }} />
-                  </div>
+                {pullProgress.percent != null && pullProgress.percent > 0 && (
+                  <>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: `${pullProgress.percent}%` }} />
+                    </div>
+                    <div className="progress-info">
+                      <span>{pullProgress.percent}%</span>
+                      {pullProgress.downloaded && pullProgress.total && (
+                        <span> — {pullProgress.downloaded} / {pullProgress.total}</span>
+                      )}
+                      {pullProgress.speed && <span> — {pullProgress.speed}</span>}
+                      {pullProgress.eta && <span> — ~{pullProgress.eta}</span>}
+                    </div>
+                    {pullProgress.status && !pullProgress.status.match(/^\d+%/m) && (
+                      <div className="progress-status-text">{pullProgress.status}</div>
+                    )}
+                  </>
                 )}
               </div>
             )}
