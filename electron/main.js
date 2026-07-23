@@ -114,11 +114,14 @@ function waitForServer(url, timeout) {
 }
 
 function tryStartOllama() {
+  logger.info('Checking Ollama status...');
   try {
     execSync('ollama list', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
     logger.info('Ollama is already running');
-    return;
-  } catch (e) {}
+    return true;
+  } catch (e) {
+    logger.info('Ollama not running, attempting to start...');
+  }
 
   try {
     const child = spawn('ollama', ['serve'], {
@@ -126,15 +129,65 @@ function tryStartOllama() {
       stdio: 'ignore'
     });
     child.unref();
-    logger.info('Ollama serve started');
+    logger.info('Ollama serve process spawned');
   } catch (e) {
-    logger.warn('Could not start ollama serve', { error: e.message });
+    logger.warn('Could not spawn ollama serve', { error: e.message, stack: e.stack });
+    return false;
   }
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        execSync('ollama list', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+        logger.info('Ollama started successfully after auto-start');
+        resolve(true);
+      } catch (e) {
+        logger.warn('Ollama still not running after 3s wait', { error: e.message });
+        resolve(false);
+      }
+    }, 3000);
+  });
 }
 
-app.whenReady().then(() => {
+async function restartOllama() {
+  logger.info('Attempting Ollama restart...');
+  try {
+    execSync('pkill -f "ollama serve" || true', { encoding: 'utf-8', timeout: 5000, stdio: 'ignore' });
+  } catch (e) {
+    logger.info('No existing Ollama process to kill');
+  }
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  try {
+    const child = spawn('ollama', ['serve'], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+    logger.info('Ollama serve respawned');
+  } catch (e) {
+    logger.error('Failed to respawn ollama serve', { error: e.message, stack: e.stack });
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        execSync('ollama list', { encoding: 'utf-8', timeout: 3000, stdio: 'ignore' });
+        logger.info('Ollama restart successful');
+        resolve(true);
+      } catch (e) {
+        logger.error('Ollama restart failed', { error: e.message });
+        resolve(false);
+      }
+    }, 3000);
+  });
+}
+
+app.whenReady().then(async () => {
   logger.info('App starting');
-  tryStartOllama();
+  await tryStartOllama();
   createWindow();
 });
 
@@ -186,7 +239,8 @@ ipcMain.handle('ocr-textpdf', async (event, filePath) => {
     const text = extractTextFromPdf(filePath);
     return { success: true, text };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Text PDF extraction failed', { filePath, error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -207,7 +261,8 @@ ipcMain.handle('ocr-tesseract', async (event, imageDir) => {
     
     return { success: true, text };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Tesseract OCR failed', { imageDir, error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -221,7 +276,8 @@ ipcMain.handle('ocr-ai', async (event, imagePath, options) => {
     const text = await ocrWithAI(imagePath, options);
     return { success: true, text };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('AI Vision OCR failed', { imagePath, options: { ...options, apiKey: options.apiKey ? '***' : undefined }, error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -236,7 +292,8 @@ ipcMain.handle('translate', async (event, text, options) => {
     const translated = await translate(text, options);
     return { success: true, text: translated };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Translation failed', { provider: options.provider, error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -251,7 +308,8 @@ ipcMain.handle('export-file', async (event, text, baseName, outputDir, formats) 
     const results = await exportToMultiple(text, baseName, outputDir, formats);
     return { success: true, results };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Export failed', { baseName, formats, error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -265,7 +323,8 @@ ipcMain.handle('ollama-setup', async (event) => {
     });
     return { success: true, ...result };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Ollama setup failed', { error: error.message, stack: error.stack });
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 
@@ -275,7 +334,8 @@ ipcMain.handle('ollama-models', async () => {
     const models = ollamaSetup.getInstalledModels();
     return { success: true, models };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Failed to get Ollama models', { error: error.message, stack: error.stack });
+    return { success: false, error: error.message, models: [] };
   }
 });
 
@@ -287,6 +347,7 @@ ipcMain.handle('ollama-pull', async (event, modelName) => {
     });
     return { success: true };
   } catch (error) {
+    logger.error('Failed to pull Ollama model', { modelName, error: error.message, stack: error.stack });
     return { success: false, error: error.message };
   }
 });
@@ -295,12 +356,19 @@ ipcMain.handle('ollama-pull', async (event, modelName) => {
 ipcMain.handle('ollama-status', async () => {
   try {
     const installed = ollamaSetup.isOllamaInstalled();
-    const running = ollamaSetup.isOllamaRunning();
+    let running = ollamaSetup.isOllamaRunning();
+
+    if (installed && !running) {
+      logger.info('Ollama installed but not running, auto-restarting...');
+      running = await restartOllama();
+    }
+
     const models = installed ? ollamaSetup.getInstalledModels() : [];
     logger.info('Ollama status checked', { installed, running, modelCount: models.length });
     return { success: true, installed, running, models };
   } catch (error) {
-    return { success: false, error: error.message };
+    logger.error('Ollama status check failed', { error: error.message, stack: error.stack });
+    return { success: false, error: error.message, installed: false, running: false, models: [] };
   }
 });
 
@@ -408,14 +476,15 @@ ipcMain.handle('process-pdf', async (event, filePath, options = {}) => {
     return { success: true, info, text, mdPath, files: { images, imagesDir } };
     
   } catch (error) {
-    logger.error('PDF processing failed', { error: error.message });
+    logger.error('PDF processing failed', { filePath, error: error.message, stack: error.stack });
     mainWindow.webContents.send('status-update', { 
       step: 'error', 
       message: `Ошибка: ${error.message}`,
       progress: 0,
-      error: true 
+      error: true,
+      details: error.stack
     });
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, details: error.stack };
   }
 });
 

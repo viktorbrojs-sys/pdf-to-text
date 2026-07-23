@@ -1,6 +1,60 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync, spawn } = require('child_process');
 const logger = require('./logger');
+
+const OLLAMA_TIMEOUT = 60000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+
+function isOllamaRunning() {
+  try {
+    execSync('ollama list', { encoding: 'utf-8', timeout: 5000, stdio: 'ignore' });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function restartOllama() {
+  logger.info('Attempting Ollama restart from translate');
+  try {
+    execSync('pkill -f "ollama serve" || true', { encoding: 'utf-8', timeout: 5000, stdio: 'ignore' });
+  } catch (e) {}
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  try {
+    const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
+    child.unref();
+  } catch (e) {
+    logger.error('Failed to spawn ollama serve', { error: e.message });
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(isOllamaRunning());
+    }, 3000);
+  });
+}
+
+async function fetchWithTimeout(url, options, timeout) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return response;
+  } catch (error) {
+    clearTimeout(timer);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout / 1000}s. Ollama may be processing a large text.`);
+    }
+    throw error;
+  }
+}
 
 /**
  * Translation Module
@@ -95,37 +149,64 @@ async function translateWithOllama(text, options = {}) {
   const processedText = applyGlossary(text, glossary);
   logger.info('Ollama translation request', { model, textLength: text.length });
   
-  try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        system: systemPrompt,
-        prompt: processedText,
-        stream: false
-      })
-    });
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      logger.info('Ollama translate attempt', { attempt, model });
+
+      const response = await fetchWithTimeout('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          system: systemPrompt,
+          prompt: processedText,
+          stream: false
+        })
+      }, OLLAMA_TIMEOUT);
     
-    if (!response.ok) {
-      throw new Error(`Ollama server error: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Ollama server error: ${response.status}`);
+      }
+    
+      const data = await response.json();
+    
+      if (!data.response) {
+        throw new Error('Ollama returned empty response. Model may not be loaded.');
+      }
+    
+      logger.info('Ollama translate success', { attempt, model });
+      return restoreGlossary(data.response, glossary);
+    } catch (error) {
+      lastError = error;
+      logger.error('Ollama translate attempt failed', { attempt, error: error.message });
+
+      const isConnectionError = error.message.includes('fetch failed') ||
+                                 error.message.includes('ECONNREFUSED') ||
+                                 error.message.includes('ECONNRESET');
+
+      if (isConnectionError && attempt < MAX_RETRIES) {
+        logger.info('Connection error, attempting Ollama restart...', { attempt });
+        const restarted = await restartOllama();
+        if (restarted) {
+          logger.info('Ollama restarted, retrying...');
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+          continue;
+        }
+      }
+
+      if (attempt < MAX_RETRIES) {
+        logger.info('Retrying after delay...', { attempt, delay: RETRY_DELAY });
+        await new Promise(r => setTimeout(r, RETRY_DELAY));
+        continue;
+      }
+
+      break;
     }
-    
-    const data = await response.json();
-    
-    if (!data.response) {
-      throw new Error('Ollama returned empty response. Model may not be loaded.');
-    }
-    
-    return restoreGlossary(data.response, glossary);
-  } catch (error) {
-    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
-      logger.error('Ollama connection refused', { error: error.message });
-      throw new Error('Ollama is not running. Start it with: ollama serve');
-    }
-    logger.error('Ollama translation error', { error: error.message });
-    throw new Error(`Ollama error: ${error.message}`);
   }
+
+  throw new Error(`Ollama translation failed after ${MAX_RETRIES} attempts: ${lastError.message}. Start Ollama with: ollama serve`);
 }
 
 /**

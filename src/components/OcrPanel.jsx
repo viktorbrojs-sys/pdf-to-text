@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
 
+const RECOMMENDED_MODELS = [
+  { name: 'qwen2.5:7b', label: 'qwen2.5:7b (рекомендуется)' },
+  { name: 'llama3.1:8b', label: 'llama3.1:8b' },
+  { name: 'mistral:7b', label: 'mistral:7b' },
+  { name: 'llava', label: 'llava (vision)' },
+];
+
 function OcrPanel({ fileInfo, onOcrComplete }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [errorDetails, setErrorDetails] = useState('');
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // AI Vision settings
   const [aiProvider, setAiProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
   const [aiModel, setAiModel] = useState('llava');
 
-  // Ollama status
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [pullProgress, setPullProgress] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     checkOllamaStatus();
@@ -31,6 +39,11 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
     }
   };
 
+  const isModelInstalled = (modelName) => {
+    const baseName = modelName.split(':')[0];
+    return ollamaStatus.models.some(m => m.name === modelName || m.name.startsWith(baseName));
+  };
+
   const handleSetupOllama = async () => {
     setIsSettingUp(true);
     setError(null);
@@ -40,8 +53,10 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       const result = await window.electronAPI.ollamaSetup();
       setOllamaStatus(result);
       setStatusMessage('Ollama готов к работе!');
+      setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
       setError(err.message);
+      setErrorDetails(err.stack || '');
     } finally {
       setIsSettingUp(false);
     }
@@ -56,17 +71,20 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       await checkOllamaStatus();
     } catch (err) {
       setError(err.message);
+      setErrorDetails(err.stack || '');
       setPullProgress('');
     }
   };
 
-  const handleOcr = async (method) => {
+  const handleOcr = async (method, isRetry = false) => {
     setSelectedMethod(method);
     setIsProcessing(true);
     setError(null);
+    setErrorDetails('');
+    setShowErrorDetails(false);
     setResult(null);
     setProgress(0);
-    setStatusMessage('Подготовка...');
+    setStatusMessage(isRetry ? 'Повторная попытка...' : 'Подготовка...');
 
     try {
       let response;
@@ -86,13 +104,16 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
             setProgress(30);
             response = await window.electronAPI.ocrTesseract(imagesResult.files.imagesDir);
           } else {
-            throw new Error('Не удалось конвертировать PDF');
+            throw new Error(imagesResult.error || 'Не удалось конвертировать PDF');
           }
           break;
 
         case 'ai':
           if (aiProvider === 'ollama' && !ollamaStatus.running) {
-            throw new Error('Ollama не запущен');
+            throw new Error('Ollama не запущен. Нажмите "Настроить Ollama" для запуска.');
+          }
+          if (aiProvider === 'ollama' && !isModelInstalled(aiModel)) {
+            throw new Error(`Модель ${aiModel} не установлена. Скачайте модель или выберите установленную.`);
           }
           setStatusMessage('Конвертация PDF в изображения...');
           setProgress(10);
@@ -106,7 +127,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               model: aiModel
             });
           } else {
-            throw new Error('Не удалось конвертировать PDF');
+            throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
           }
           break;
 
@@ -118,13 +139,23 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
         setResult(response.text);
         onOcrComplete(response.text);
       } else {
-        setError(response?.error || 'Unknown error');
+        throw new Error(response?.error || 'Неизвестная ошибка');
       }
     } catch (err) {
-      setError(err.message);
+      const msg = err.message || String(err);
+      setError(msg);
+      setErrorDetails(err.stack || response?.details || '');
     } finally {
       setIsProcessing(false);
       setStatusMessage('');
+      setIsRetrying(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (selectedMethod) {
+      setIsRetrying(true);
+      handleOcr(selectedMethod, true);
     }
   };
 
@@ -137,7 +168,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           disabled={isProcessing}
         >
           \u25A0 \u0422\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 PDF
-          {fileInfo?.isTextBased && <span className="badge">★</span>}
+          {fileInfo?.isTextBased && <span className="badge">\u2605</span>}
         </button>
 
         <button 
@@ -146,16 +177,16 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
           disabled={isProcessing}
         >
           \u25B6 Tesseract
-          <span className="sub">Локальный</span>
+          <span className="sub">\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439</span>
         </button>
 
         <button 
           className="method-btn ai"
           onClick={() => handleOcr('ai')}
-          disabled={isProcessing}
+          disabled={isProcessing || (aiProvider === 'ollama' && !ollamaStatus.running)}
         >
           \u2605 AI Vision
-          <span className="sub">Высокое качество</span>
+          <span className="sub">\u0412\u044B\u0441\u043E\u043A\u043E\u0435 \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u043E</span>
         </button>
       </div>
 
@@ -184,31 +215,44 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
                   onClick={handleSetupOllama}
                   disabled={isSettingUp}
                 >
-                  {isSettingUp ? 'Установка...' : 'Установить'}
+                  {isSettingUp ? '\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430...' : '\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C'}
+                </button>
+              )}
+              {ollamaStatus.installed && !ollamaStatus.running && (
+                <button 
+                  className="setup-btn"
+                  onClick={handleSetupOllama}
+                  disabled={isSettingUp}
+                >
+                  {isSettingUp ? '\u0417\u0430\u043F\u0443\u0441\u043A...' : '\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C'}
                 </button>
               )}
             </div>
 
             <div className="setting-row">
-              <label>Модель:</label>
+              <label>\u041C\u043E\u0434\u0435\u043B\u044C:</label>
               <select value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
-                {ollamaStatus.models.length > 0 ? (
-                  ollamaStatus.models.map(m => (
-                    <option key={m.name} value={m.name}>{m.name}</option>
-                  ))
-                ) : (
-                  <option value="llava">llava</option>
-                )}
+                {RECOMMENDED_MODELS.map(m => {
+                  const installed = isModelInstalled(m.name);
+                  return (
+                    <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
+                      {installed ? '\u2713' : '\u2717'} {m.label}
+                    </option>
+                  );
+                })}
+                {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
+                  <option key={m.name} value={m.name}>{'\u2713'} {m.name}</option>
+                ))}
               </select>
             </div>
 
-            {ollamaStatus.installed && !ollamaStatus.models.some(m => m.name.startsWith(aiModel.split(':')[0])) && (
+            {ollamaStatus.installed && !isModelInstalled(aiModel) && (
               <button 
                 className="pull-btn"
                 onClick={() => handlePullModel(aiModel)}
                 disabled={!!pullProgress}
               >
-                {pullProgress || `Скачать ${aiModel}`}
+                {pullProgress || `\u0421\u043A\u0430\u0447\u0430\u0442\u044C ${aiModel}`}
               </button>
             )}
           </>
@@ -221,7 +265,7 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               type="password" 
               value={apiKey} 
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="API ключ"
+              placeholder="API \u043A\u043B\u044E\u0447"
             />
           </div>
         )}
@@ -230,19 +274,43 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
       {/* Progress */}
       {isProcessing && (
         <div className="progress-container">
-          <p>{statusMessage || 'Обработка...'}</p>
+          <p>{statusMessage || '\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430...'}</p>
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
       )}
 
-      {error && <div className="error-message">{'\u2717'} {error}</div>}
+      {/* Error with details */}
+      {error && (
+        <div className="error-block">
+          <div className="error-message">
+            <span>{'\u2717'} {error}</span>
+            <div className="error-actions">
+              <button className="retry-btn" onClick={handleRetry} disabled={isProcessing || isRetrying}>
+                {isRetrying ? '\u041F\u043E\u0432\u0442\u043E\u0440...' : '\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C'}
+              </button>
+              {errorDetails && (
+                <button 
+                  className="details-toggle"
+                  onClick={() => setShowErrorDetails(!showErrorDetails)}
+                >
+                  {showErrorDetails ? '\u25B2 \u0421\u043A\u0440\u044B\u0442\u044C' : '\u25BC \u041F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0441\u0442\u0438'}
+                </button>
+              )}
+            </div>
+          </div>
+          {showErrorDetails && errorDetails && (
+            <pre className="error-details">{errorDetails}</pre>
+          )}
+        </div>
+      )}
+
       {statusMessage && !isProcessing && <div className="status-message">{statusMessage}</div>}
 
       {result && (
         <div className="result-container">
-          <h3>Результат</h3>
+          <h3>\u0420\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442</h3>
           <textarea className="result-text" value={result} readOnly rows={6} />
         </div>
       )}

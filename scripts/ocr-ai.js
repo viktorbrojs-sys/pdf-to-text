@@ -1,58 +1,126 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
+const logger = require('./logger');
 
-/**
- * AI Vision OCR Module
- * Supports: Local LLM (Ollama), OpenAI API, Google Vision API
- */
+const OLLAMA_TIMEOUT = 60000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
 
-/**
- * Convert image to base64
- * @param {string} imagePath 
- * @returns {string} Base64 encoded image
- */
 function imageToBase64(imagePath) {
   const imageBuffer = fs.readFileSync(imagePath);
   return imageBuffer.toString('base64');
 }
 
-/**
- * OCR with Ollama (Local LLM)
- * @param {string} imagePath - Path to image
- * @param {Object} options - Options
- * @returns {Promise<string>} Extracted text
- */
-async function ocrWithOllama(imagePath, options = {}) {
-  const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
-  
-  const base64 = imageToBase64(imagePath);
-  
+function isOllamaRunning() {
   try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        images: [base64],
-        stream: false
-      })
-    });
-    
-    const data = await response.json();
-    return data.response;
-  } catch (error) {
-    throw new Error(`Ollama error: ${error.message}. Make sure Ollama is running (ollama serve)`);
+    execSync('ollama list', { encoding: 'utf-8', timeout: 5000, stdio: 'ignore' });
+    return true;
+  } catch (e) {
+    return false;
   }
 }
 
-/**
- * OCR with OpenAI API
- * @param {string} imagePath - Path to image
- * @param {Object} options - Options
- * @returns {Promise<string>} Extracted text
- */
+async function restartOllama() {
+  logger.info('Attempting Ollama restart from ocr-ai');
+  try {
+    execSync('pkill -f "ollama serve" || true', { encoding: 'utf-8', timeout: 5000, stdio: 'ignore' });
+  } catch (e) {}
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  try {
+    const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
+    child.unref();
+  } catch (e) {
+    logger.error('Failed to spawn ollama serve', { error: e.message });
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(isOllamaRunning());
+    }, 3000);
+  });
+}
+
+async function fetchWithTimeout(url, options, timeout) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return response;
+  } catch (error) {
+    clearTimeout(timer);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout / 1000}s. Ollama may be overloaded or the model is too large.`);
+    }
+    throw error;
+  }
+}
+
+async function ocrWithOllama(imagePath, options = {}) {
+  const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
+
+  const base64 = imageToBase64(imagePath);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      logger.info('Ollama OCR attempt', { attempt, model, imagePath });
+
+      const response = await fetchWithTimeout('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          images: [base64],
+          stream: false
+        })
+      }, OLLAMA_TIMEOUT);
+
+      const data = await response.json();
+
+      if (!data.response) {
+        throw new Error('Ollama returned empty response. Model may not support vision.');
+      }
+
+      logger.info('Ollama OCR success', { attempt, model });
+      return data.response;
+    } catch (error) {
+      lastError = error;
+      logger.error('Ollama OCR attempt failed', { attempt, error: error.message });
+
+      const isConnectionError = error.message.includes('fetch failed') ||
+                                 error.message.includes('ECONNREFUSED') ||
+                                 error.message.includes('ECONNRESET');
+
+      if (isConnectionError && attempt < MAX_RETRIES) {
+        logger.info('Connection error, attempting Ollama restart...', { attempt });
+        const restarted = await restartOllama();
+        if (restarted) {
+          logger.info('Ollama restarted, retrying...');
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+          continue;
+        }
+      }
+
+      if (attempt < MAX_RETRIES) {
+        logger.info('Retrying after delay...', { attempt, delay: RETRY_DELAY });
+        await new Promise(r => setTimeout(r, RETRY_DELAY));
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  throw new Error(`Ollama OCR failed after ${MAX_RETRIES} attempts: ${lastError.message}. Make sure Ollama is running (ollama serve) and the model supports vision.`);
+}
+
 async function ocrWithOpenAI(imagePath, options = {}) {
   const { apiKey, model = 'gpt-4o', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
   
@@ -91,12 +159,6 @@ async function ocrWithOpenAI(imagePath, options = {}) {
   }
 }
 
-/**
- * OCR with Google Vision API
- * @param {string} imagePath - Path to image
- * @param {Object} options - Options
- * @returns {Promise<string>} Extracted text
- */
 async function ocrWithGoogleVision(imagePath, options = {}) {
   const { apiKey } = options;
   
@@ -129,12 +191,6 @@ async function ocrWithGoogleVision(imagePath, options = {}) {
   }
 }
 
-/**
- * Main OCR function - routes to appropriate provider
- * @param {string} imagePath - Path to image
- * @param {Object} options - Options
- * @returns {Promise<string>} Extracted text
- */
 async function ocrWithAI(imagePath, options = {}) {
   const { provider = 'ollama', ...rest } = options;
   
@@ -150,13 +206,6 @@ async function ocrWithAI(imagePath, options = {}) {
   }
 }
 
-/**
- * Process multiple images with AI Vision
- * @param {string[]} imagePaths - Array of image paths
- * @param {Object} options - Options
- * @param {function} onProgress - Progress callback
- * @returns {Promise<string>} Combined extracted text
- */
 async function processMultipleImages(imagePaths, options = {}, onProgress = () => {}) {
   const texts = [];
   

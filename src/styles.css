@@ -533,6 +533,122 @@ textarea:focus {
   color: #ff6b6b;
   font-size: 13px;
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.error-block {
+  margin-top: 8px;
+}
+
+.error-block .error-banner {
+  margin-bottom: 0;
+}
+
+.error-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.retry-btn {
+  padding: 4px 12px;
+  background: rgba(255, 107, 107, 0.15);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 6px;
+  color: #ff6b6b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.25);
+}
+
+.retry-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.details-toggle {
+  padding: 4px 12px;
+  background: rgba(138, 138, 180, 0.1);
+  border: 1px solid rgba(138, 138, 180, 0.3);
+  border-radius: 6px;
+  color: #8892b0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.details-toggle:hover {
+  background: rgba(138, 138, 180, 0.2);
+}
+
+.error-details {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #0d0d14;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #8892b0;
+  font-size: 11px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.setup-btn {
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: rgba(100, 255, 218, 0.15);
+  border: 1px solid rgba(100, 255, 218, 0.3);
+  border-radius: 6px;
+  color: #64ffda;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.setup-btn:hover:not(:disabled) {
+  background: rgba(100, 255, 218, 0.25);
+}
+
+.setup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pull-btn {
+  margin-top: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 6px;
+  color: #ffc107;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pull-btn:hover:not(:disabled) {
+  background: rgba(255, 193, 7, 0.25);
+}
+
+.pull-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setting-row select option:disabled {
+  color: #5a5a6a;
+  opacity: 0.6;
 }
 
 .status-message {

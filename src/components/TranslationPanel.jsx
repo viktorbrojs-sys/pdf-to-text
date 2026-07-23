@@ -4,24 +4,30 @@ const DEFAULT_SYSTEM_PROMPT = `Ты — профессиональный пер�
 Сохрани форматирование: заголовки, списки, таблицы.
 Не переводи имена собственные, аббревиатуры и технические термины, если они не указаны в паттернах перевода.`;
 
+const RECOMMENDED_MODELS = [
+  { name: 'qwen2.5:7b', label: 'qwen2.5:7b (рекомендуется)' },
+  { name: 'llama3.1:8b', label: 'llama3.1:8b' },
+  { name: 'mistral:7b', label: 'mistral:7b' },
+  { name: 'llama3', label: 'llama3' },
+];
+
 function TranslationPanel({ sourceText, onTranslationComplete }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [errorDetails, setErrorDetails] = useState('');
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   
-  // Ollama status
   const [ollamaStatus, setOllamaStatus] = useState({ installed: false, running: false, models: [] });
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [pullProgress, setPullProgress] = useState({ status: '', percent: null });
   
-  // Settings
   const [provider, setProvider] = useState('ollama');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('qwen2.5:7b');
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   
-  // Glossary patterns
   const [patterns, setPatterns] = useState([
     { source: 'ДНК', target: 'DNA' },
     { source: 'ХБМ', target: 'HBM' },
@@ -29,12 +35,11 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
   ]);
   const [newPatternSource, setNewPatternSource] = useState('');
   const [newPatternTarget, setNewPatternTarget] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  // Check Ollama status on mount
   useEffect(() => {
     checkOllamaStatus();
     
-    // Listen for pull progress
     if (window.electronAPI?.onOllamaProgress) {
       window.electronAPI.onOllamaProgress((progress) => {
         setPullProgress(progress);
@@ -48,30 +53,39 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       setOllamaStatus(status);
       
       if (status.installed && status.models.length > 0) {
-        setModel(status.models[0].name);
+        const preferred = status.models.find(m => m.name.startsWith('qwen2.5')) || status.models[0];
+        setModel(preferred.name);
       }
     } catch (err) {
       console.error('Failed to check Ollama status:', err);
     }
   };
 
+  const isModelInstalled = (modelName) => {
+    const baseName = modelName.split(':')[0];
+    return ollamaStatus.models.some(m => m.name === modelName || m.name.startsWith(baseName));
+  };
+
   const handleSetupOllama = async () => {
     setIsSettingUp(true);
     setError(null);
+    setErrorDetails('');
     setStatusMessage('Проверка и установка Ollama...');
     
     try {
       const result = await window.electronAPI.ollamaSetup();
       setOllamaStatus(result);
       
-      if (result.installed && result.models.length > 0) {
-        setModel(result.models[0].name);
+      if (result.installed && result.models?.length > 0) {
+        const preferred = result.models.find(m => m.name.startsWith('qwen2.5')) || result.models[0];
+        setModel(preferred.name);
       }
       
       setStatusMessage('Ollama готов к работе!');
       setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
       setError(err.message);
+      setErrorDetails(err.stack || '');
     } finally {
       setIsSettingUp(false);
     }
@@ -88,11 +102,12 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       setTimeout(() => setPullProgress({ status: '', percent: null }), 2000);
     } catch (err) {
       setError(err.message);
+      setErrorDetails(err.stack || '');
       setPullProgress({ status: '', percent: null });
     }
   };
 
-  const handleTranslate = async () => {
+  const handleTranslate = async (isRetry = false) => {
     if (!sourceText) {
       setError('Нет текста для перевода');
       return;
@@ -103,8 +118,15 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       return;
     }
 
+    if (provider === 'ollama' && !isModelInstalled(model)) {
+      setError(`Модель ${model} не установлена. Скачайте модель или выберите установленную.`);
+      return;
+    }
+
     setIsTranslating(true);
     setError(null);
+    setErrorDetails('');
+    setShowErrorDetails(false);
     setResult(null);
 
     try {
@@ -123,13 +145,21 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
         setResult(response.text);
         onTranslationComplete(response.text);
       } else {
-        setError(response.error);
+        throw new Error(response.error || 'Неизвестная ошибка перевода');
       }
     } catch (err) {
-      setError(err.message);
+      const msg = err.message || String(err);
+      setError(msg);
+      setErrorDetails(err.stack || '');
     } finally {
       setIsTranslating(false);
+      setIsRetrying(false);
     }
+  };
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    handleTranslate(true);
   };
 
   const addPattern = () => {
@@ -148,11 +178,29 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
     <div className="translation-panel">
       <h2>Перевод</h2>
 
-      {/* Error Banner */}
+      {/* Error Banner with details */}
       {error && (
-        <div className="error-banner">
-          <span>{'\u2717'} {error}</span>
-          <button onClick={() => setError(null)}>✕</button>
+        <div className="error-block">
+          <div className="error-banner">
+            <span>{'\u2717'} {error}</span>
+            <button onClick={() => { setError(null); setErrorDetails(''); }}>✕</button>
+          </div>
+          <div className="error-actions">
+            <button className="retry-btn" onClick={handleRetry} disabled={isTranslating || isRetrying}>
+              {isRetrying ? 'Повтор...' : 'Повторить'}
+            </button>
+            {errorDetails && (
+              <button 
+                className="details-toggle"
+                onClick={() => setShowErrorDetails(!showErrorDetails)}
+              >
+                {showErrorDetails ? '\u25B2 Скрыть' : '\u25BC Подробности'}
+              </button>
+            )}
+          </div>
+          {showErrorDetails && errorDetails && (
+            <pre className="error-details">{errorDetails}</pre>
+          )}
         </div>
       )}
 
@@ -178,11 +226,10 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
 
         {provider === 'ollama' && (
           <>
-            {/* Ollama Status */}
             <div className="ollama-status">
               <p>
-                {ollamaStatus.installed ? '\u2713 Ollama \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D' : '\u2717 Ollama \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D'}
-                {ollamaStatus.running ? ' | \u2713 \u0421\u0435\u0440\u0432\u0435\u0440 \u0437\u0430\u043F\u0443\u0449\u0435\u043D' : ' | \u2717 \u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435 \u0437\u0430\u043F\u0443\u0449\u0435\u043D'}
+                {ollamaStatus.installed ? '\u2713 Ollama установлен' : '\u2717 Ollama не установлен'}
+                {ollamaStatus.running ? ' | \u2713 Сервер запущен' : ' | \u2717 Сервер не запущен'}
               </p>
               {!ollamaStatus.installed && (
                 <button 
@@ -193,28 +240,35 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
                   {isSettingUp ? 'Установка...' : 'Установить Ollama'}
                 </button>
               )}
+              {ollamaStatus.installed && !ollamaStatus.running && (
+                <button 
+                  className="setup-btn"
+                  onClick={handleSetupOllama}
+                  disabled={isSettingUp}
+                >
+                  {isSettingUp ? 'Запуск...' : 'Запустить Ollama'}
+                </button>
+              )}
             </div>
 
-            {/* Model Selection */}
             <div className="setting-row">
               <label>Модель:</label>
               <select value={model} onChange={(e) => setModel(e.target.value)}>
-                {ollamaStatus.models.length > 0 ? (
-                  ollamaStatus.models.map(m => (
-                    <option key={m.name} value={m.name}>{m.name}</option>
-                  ))
-                ) : (
-                  <>
-                    <option value="qwen2.5:7b">qwen2.5:7b (рекомендуется)</option>
-                    <option value="llama3.1:8b">llama3.1:8b</option>
-                    <option value="mistral:7b">mistral:7b</option>
-                  </>
-                )}
+                {RECOMMENDED_MODELS.map(m => {
+                  const installed = isModelInstalled(m.name);
+                  return (
+                    <option key={m.name} value={m.name} disabled={!installed && ollamaStatus.models.length > 0}>
+                      {installed ? '\u2713' : '\u2717'} {m.label}
+                    </option>
+                  );
+                })}
+                {ollamaStatus.models.filter(m => !RECOMMENDED_MODELS.some(r => r.name === m.name)).map(m => (
+                  <option key={m.name} value={m.name}>{'\u2713'} {m.name}</option>
+                ))}
               </select>
             </div>
 
-            {/* Pull Model */}
-            {ollamaStatus.installed && !ollamaStatus.models.some(m => m.name === model) && (
+            {ollamaStatus.installed && !isModelInstalled(model) && (
               <div className="pull-model">
                 <button 
                   className="pull-btn"
@@ -291,10 +345,10 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Translate Button */}
       <button 
         className="translate-btn"
-        onClick={handleTranslate}
+        onClick={() => handleTranslate()}
         disabled={isTranslating || !sourceText}
       >
-        {isTranslating ? '... \u041F\u0435\u0440\u0435\u0432\u043E\u0434\u0438\u043C...' : '\u21C4 \u041F\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438'}
+        {isTranslating ? '... Переводим...' : '⇄ Перевести'}
       </button>
 
       {/* Result */}
