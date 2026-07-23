@@ -352,33 +352,42 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
 
       {/* Glossary Patterns */}
       <div className="settings-section">
-        <h3>Паттерны перевода</h3>
+        <div
+          className={`collapsible-header ${patternsCollapsed ? 'collapsed' : ''}`}
+          onClick={() => setPatternsCollapsed(!patternsCollapsed)}
+        >
+          <h3>Паттерны перевода</h3>
+        </div>
         
-        <div className="patterns-list">
-          {patterns.map((p, i) => (
-            <div key={i} className="pattern-item">
-              <span>{p.source} → {p.target}</span>
-              <button onClick={() => removePattern(i)}>✕</button>
+        {!patternsCollapsed && (
+          <>
+            <div className="patterns-list">
+              {patterns.map((p, i) => (
+                <div key={i} className="pattern-item">
+                  <span>{p.source} → {p.target}</span>
+                  <button onClick={() => removePattern(i)}>✕</button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="add-pattern">
-          <input 
-            type="text" 
-            value={newPatternSource}
-            onChange={(e) => setNewPatternSource(e.target.value)}
-            placeholder="Исходное"
-          />
-          <span>→</span>
-          <input 
-            type="text" 
-            value={newPatternTarget}
-            onChange={(e) => setNewPatternTarget(e.target.value)}
-            placeholder="Перевод"
-          />
-          <button onClick={addPattern}>+</button>
-        </div>
+            <div className="add-pattern">
+              <input 
+                type="text" 
+                value={newPatternSource}
+                onChange={(e) => setNewPatternSource(e.target.value)}
+                placeholder="Исходное"
+              />
+              <span>→</span>
+              <input 
+                type="text" 
+                value={newPatternTarget}
+                onChange={(e) => setNewPatternTarget(e.target.value)}
+                placeholder="Перевод"
+              />
+              <button onClick={addPattern}>+</button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Translation Progress */}
@@ -409,12 +418,24 @@ function TranslationPanel({ sourceText, onTranslationComplete }) {
       {/* Result */}
       {result && (
         <div className="result-container">
-          <textarea 
-            className="result-text" 
-            value={result} 
-            readOnly 
-            rows={6}
-          />
+          <div
+            className={`collapsible-header ${!resultExpanded ? 'collapsed' : ''}`}
+            onClick={() => setResultExpanded(!resultExpanded)}
+          >
+            <h3>Результат перевода</h3>
+          </div>
+          {!resultExpanded ? (
+            <div className="result-collapsed" onClick={() => setResultExpanded(true)}>
+              Показать результат
+            </div>
+          ) : (
+            <textarea 
+              className="result-text" 
+              value={result} 
+              readOnly 
+              rows={6}
+            />
+          )}
         </div>
       )}
     </div>

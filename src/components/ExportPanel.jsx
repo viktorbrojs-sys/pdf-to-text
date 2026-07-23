@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
   const [exporting, setExporting] = useState(false);
-  const [results, setResults] = useState(null);
+  const [savedFiles, setSavedFiles] = useState({});
   const [error, setError] = useState(null);
 
   const getMethodSuffix = () => {
@@ -23,7 +23,6 @@ function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
 
     setExporting(true);
     setError(null);
-    setResults(null);
 
     try {
       const baseName = (fileName?.replace('.pdf', '') || 'output') + getMethodSuffix();
@@ -37,7 +36,15 @@ function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
       );
 
       if (response.success) {
-        setResults(response.results);
+        setSavedFiles(prev => {
+          const updated = { ...prev };
+          Object.entries(response.results).forEach(([format, result]) => {
+            if (result.success) {
+              updated[format] = { fileName: `${baseName}.${format}`, path: result.path };
+            }
+          });
+          return updated;
+        });
       } else {
         setError(response.error);
       }
@@ -58,30 +65,45 @@ function ExportPanel({ text, fileName, ocrMethod, translatedText }) {
 
   return (
     <div className="export-panel">
-      <div className="export-buttons">
-        <button className="export-btn md" onClick={() => handleExport(['md'])} disabled={exporting || !text}>◆ MD</button>
-        <button className="export-btn docx" onClick={() => handleExport(['docx'])} disabled={exporting || !text}>◆ DOCX</button>
-        <button className="export-btn pdf" onClick={() => handleExport(['pdf'])} disabled={exporting || !text}>◆ PDF</button>
-        <button className="export-btn all" onClick={() => handleExport(['md', 'docx', 'pdf'])} disabled={exporting || !text}>◆ Все</button>
-      </div>
-
-      <div className="export-right">
-        {exporting && <p className="exporting">… Экспорт...</p>}
-        {error && <div className="error-message">{'✗'} {error}</div>}
-        {results && (
-          <div className="export-results">
-            {Object.entries(results).map(([format, result]) => (
-              <div key={format} className={`export-result ${result.success ? 'success' : 'error'}`}>
-                <span className="format">{baseName}.{format}</span>
-                <span className="result-status">{result.success ? '✓ Сохранено' : '✗ Ошибка'}</span>
-                {result.success && result.path && (
-                  <button className="open-btn" onClick={() => handleOpenFile(result.path)}>Open</button>
-                )}
-              </div>
-            ))}
+      <div className="export-row">
+        <button className="export-btn md" onClick={() => handleExport(['md'])} disabled={exporting || !text}>MD</button>
+        {savedFiles.md && (
+          <div className="export-result">
+            <span className="format">{savedFiles.md.fileName}</span>
+            <span className="result-status">✓ Сохранено</span>
+            <button className="open-btn" onClick={() => handleOpenFile(savedFiles.md.path)}>Открыть</button>
           </div>
         )}
       </div>
+
+      <div className="export-row">
+        <button className="export-btn docx" onClick={() => handleExport(['docx'])} disabled={exporting || !text}>DOCX</button>
+        {savedFiles.docx && (
+          <div className="export-result">
+            <span className="format">{savedFiles.docx.fileName}</span>
+            <span className="result-status">✓ Сохранено</span>
+            <button className="open-btn" onClick={() => handleOpenFile(savedFiles.docx.path)}>Открыть</button>
+          </div>
+        )}
+      </div>
+
+      <div className="export-row">
+        <button className="export-btn pdf" onClick={() => handleExport(['pdf'])} disabled={exporting || !text}>PDF</button>
+        {savedFiles.pdf && (
+          <div className="export-result">
+            <span className="format">{savedFiles.pdf.fileName}</span>
+            <span className="result-status">✓ Сохранено</span>
+            <button className="open-btn" onClick={() => handleOpenFile(savedFiles.pdf.path)}>Открыть</button>
+          </div>
+        )}
+      </div>
+
+      <div className="export-row">
+        <button className="export-btn all" onClick={() => handleExport(['md', 'docx', 'pdf'])} disabled={exporting || !text}>Все</button>
+      </div>
+
+      {exporting && <p className="exporting">… Экспорт...</p>}
+      {error && <div className="error-message">{'✗'} {error}</div>}
     </div>
   );
 }

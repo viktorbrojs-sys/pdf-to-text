@@ -208,27 +208,37 @@ body {
 
 .export-panel {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.export-buttons {
-  display: flex;
   flex-direction: column;
   gap: 6px;
-  flex-shrink: 0;
+}
+
+.export-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .export-btn {
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: #1a1a2e;
   border: 1px solid #2a2a3a;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #e0e0e0;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.export-btn:hover:not(:disabled) {
+  border-color: #64ffda;
+  background: rgba(100, 255, 218, 0.05);
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .export-results {
@@ -589,12 +599,54 @@ textarea:focus {
 }
 
 .result-text {
-  height: 150px;
+  height: 120px;
   overflow-y: auto;
 }
 
 .result-container {
   overflow: visible;
+}
+
+.result-collapsed {
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  color: #8892b0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.result-collapsed:hover {
+  border-color: #64ffda;
+  color: #64ffda;
+}
+
+.collapsible-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collapsible-header h3 {
+  margin-bottom: 0;
+}
+
+.collapsible-header::after {
+  content: '▼';
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: #8892b0;
+}
+
+.collapsible-header.collapsed::after {
+  transform: rotate(-90deg);
+}
+
+.collapsible-header:hover h3 {
+  color: #64ffda;
 }
 
 /* Patterns */
@@ -933,33 +985,27 @@ textarea:focus {
   margin-top: 8px;
 }
 
-/* Export */
-.export-buttons {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
 .export-btn {
-  flex: 1;
-  padding: 10px;
+  padding: 6px 12px;
   background: #1a1a2e;
   border: 1px solid #2a2a3a;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #e0e0e0;
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.export-btn:hover {
+.export-btn:hover:not(:disabled) {
   border-color: #64ffda;
   background: rgba(100, 255, 218, 0.05);
 }
 
-.export-btn.selected {
-  border-color: #64ffda;
-  background: rgba(100, 255, 218, 0.1);
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Footer */
