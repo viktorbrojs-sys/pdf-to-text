@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 const logger = require('./logger');
 
-const OLLAMA_TIMEOUT = 60000;
+const OLLAMA_TIMEOUT = 120000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
@@ -18,6 +18,15 @@ function isOllamaRunning() {
     return true;
   } catch (e) {
     return false;
+  }
+}
+
+function getInstalledModels() {
+  try {
+    const output = execSync('ollama list', { encoding: 'utf-8', timeout: 5000 });
+    return output.split('\n').slice(1).map(line => line.split(/\s+/)[0]).filter(Boolean);
+  } catch (e) {
+    return [];
   }
 }
 
@@ -64,12 +73,17 @@ async function fetchWithTimeout(url, options, timeout) {
 async function ocrWithOllama(imagePath, options = {}) {
   const { model = 'llava', prompt = 'Извлеки весь текст с этого изображения. Сохрани форматирование.' } = options;
 
+  const installedModels = getInstalledModels();
+  if (!installedModels.some(m => m.startsWith(model.split(':')[0]))) {
+    throw new Error(`Model ${model} is not installed. Available: ${installedModels.join(', ')}`);
+  }
+
   const base64 = imageToBase64(imagePath);
   let lastError = null;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      logger.info('Ollama OCR attempt', { attempt, model, imagePath });
+      logger.info('Ollama OCR attempt', { attempt, model, imageSize: base64.length });
 
       const response = await fetchWithTimeout('http://localhost:11434/api/generate', {
         method: 'POST',
@@ -83,9 +97,30 @@ async function ocrWithOllama(imagePath, options = {}) {
       }, OLLAMA_TIMEOUT);
 
       const data = await response.json();
+      logger.info('Ollama OCR response', { response: data.response?.substring(0, 100) });
 
-      if (!data.response) {
-        throw new Error('Ollama returned empty response. Model may not support vision.');
+      if (!data.response || data.response.trim() === '') {
+        const englishPrompt = 'Extract all text from this image. Preserve formatting.';
+        logger.info('Trying with English prompt', { model });
+
+        const englishResponse = await fetchWithTimeout('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            prompt: englishPrompt,
+            images: [base64],
+            stream: false
+          })
+        }, OLLAMA_TIMEOUT);
+
+        const englishData = await englishResponse.json();
+        logger.info('English prompt response', { response: englishData.response?.substring(0, 100) });
+
+        if (englishData.response) {
+          return englishData.response;
+        }
+        throw new Error('Model returned empty response. The model may not support vision input.');
       }
 
       logger.info('Ollama OCR success', { attempt, model });
