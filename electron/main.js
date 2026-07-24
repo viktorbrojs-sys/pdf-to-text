@@ -232,10 +232,6 @@ app.on('before-quit', () => {
 
 // Select PDF file
 ipcMain.handle('select-pdf', async () => {
-  if (mainWindow) {
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
-    mainWindow.moveTop();
-  }
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
@@ -263,9 +259,6 @@ ipcMain.handle('select-pdf', async () => {
     logger.info('PDF selected', { path: filePath });
     return { type: 'pdf', path: filePath };
   } finally {
-    if (mainWindow) {
-      mainWindow.setAlwaysOnTop(false);
-    }
   }
 });
 

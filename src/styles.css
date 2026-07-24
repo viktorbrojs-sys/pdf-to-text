@@ -243,14 +243,21 @@ body {
 
 .export-panel {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 16px;
 }
 
-.export-row {
+.export-buttons {
   display: flex;
-  align-items: center;
+  flex-direction: row;
   gap: 8px;
+}
+
+.export-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .export-btn {
@@ -274,13 +281,6 @@ body {
 .export-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.export-results {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .export-right {
@@ -382,20 +382,12 @@ body {
 }
 
 /* Export results */
-.export-results {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 
 .export-result {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .export-result .format {
