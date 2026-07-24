@@ -142,7 +142,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
         };
         console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'modelToSend:', modelToSend);
         console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
-        response = await window.electronAPI.ocrAi(fileInfo.path, ocrOptions);
+        const safeOptions = JSON.parse(JSON.stringify(ocrOptions));
+        response = await window.electronAPI.ocrAi(fileInfo.path, safeOptions);
       } else {
         switch (selectedMethod) {
           case 'textpdf':
@@ -190,7 +191,8 @@ function OcrPanel({ fileInfo, onOcrComplete }) {
               };
               console.log('DEBUG [OcrPanel] aiModel:', aiModel, 'modelToSend:', modelToSend);
               console.log('DEBUG [OcrPanel] ocrOptions:', JSON.stringify(ocrOptions));
-              response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], ocrOptions);
+              const safeOptions = JSON.parse(JSON.stringify(ocrOptions));
+              response = await window.electronAPI.ocrAi(aiImagesResult.files.images[0], safeOptions);
             } else {
               throw new Error(aiImagesResult.error || 'Не удалось конвертировать PDF');
             }

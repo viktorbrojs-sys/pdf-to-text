@@ -8,20 +8,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // OCR methods
   ocrTextPdf: (filePath) => ipcRenderer.invoke('ocr-textpdf', filePath),
   ocrTesseract: (imageDir) => ipcRenderer.invoke('ocr-tesseract', imageDir),
-  ocrAi: (imagePath, options) => ipcRenderer.invoke('ocr-ai', imagePath, options),
+  ocrAi: (imagePath, options) => ipcRenderer.invoke('ocr-ai', imagePath, JSON.parse(JSON.stringify(options))),
   
   // Translation
-  translate: (text, options) => ipcRenderer.invoke('translate', text, options),
+  translate: (text, options) => ipcRenderer.invoke('translate', text, JSON.parse(JSON.stringify(options))),
   
   // Export
   exportFile: (text, baseName, outputDir, formats) => 
-    ipcRenderer.invoke('export-file', text, baseName, outputDir, formats),
+    ipcRenderer.invoke('export-file', text, baseName, outputDir, JSON.parse(JSON.stringify(formats))),
   
   // Process PDF (full pipeline)
-  processPdf: (filePath, options) => ipcRenderer.invoke('process-pdf', filePath, options),
+  processPdf: (filePath, options) => ipcRenderer.invoke('process-pdf', filePath, JSON.parse(JSON.stringify(options))),
   
   // Download
-  downloadFile: (options) => ipcRenderer.invoke('download-file', options),
+  downloadFile: (options) => ipcRenderer.invoke('download-file', JSON.parse(JSON.stringify(options))),
   
   // Open file
   openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
